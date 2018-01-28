@@ -4,6 +4,8 @@ import nltk
 import sys
 import getopt
 
+languages = ['indonesian','malaysian','tamil']
+
 def build_LM(in_file):
     """
     build language models for each label
@@ -13,7 +15,7 @@ def build_LM(in_file):
     # This is an empty method
     # Pls implement your code in below
     fh = open(in_file)
-    languages = {'indonesian': 0,'malaysian': 0,'tamil': 0}
+    language_cnt = {language: 0.0 for language in languages}
     d = {}
     for line in fh:
     	prefix = line.split(' ', 1)[0]
@@ -21,15 +23,15 @@ def build_LM(in_file):
     	if len(tail) >= 4:
     		for i in range(0,len(tail)-3):
     			four_gram = tail[i:i+4]
-	    		for language in languages.keys():
+	    		for language in languages:
 	    			d.setdefault((language,four_gram),1)
 	    			if language == prefix:
 	    				d[(language,four_gram)] += 1
-	    				languages[language] += 1
+	    				language_cnt[language] += 1
 	    			elif d[(language,four_gram)] == 1:
-	    				languages[language] += 1
+	    				language_cnt[language] += 1
     fh.close()
-    return {(language,four_gram): d[(language,four_gram)]/languages[language] for language, four_gram in d.keys()}
+    return {(language,four_gram): d[(language,four_gram)]/language_cnt[language] for language, four_gram in d.keys()}
     
 def test_LM(in_file, out_file, LM):
     """
@@ -40,6 +42,24 @@ def test_LM(in_file, out_file, LM):
     print "testing language models..."
     # This is an empty method
     # Pls implement your code in below
+    fi = open(in_file)
+    fo = file(out_file, 'w')
+    import numpy #added
+    for line in fi:
+    	if len(line) >= 4:
+    		language_prb = {language: 0.0 for language in languages} #1.0
+    		stat = ('other',-float('inf')) #0
+    		for language in languages:
+	    		for i in range(0,len(line)-3):
+	    			four_gram = line[i:i+4]
+	    			language_prb[language] += numpy.log(LM.get((language,four_gram),1.0)) # language_prb[language] * LM.get((language,four_gram), 1.0)
+	    		if language_prb[language] == 0.0: #1.0
+	    			language_prb[language] = -float('inf') #explain this, why not 1.0 test with LN ? 0.0
+	    		if language_prb[language] > stat[1]:
+	    			stat = (language,language_prb[language])
+	    	fo.write(stat[0] + ' ' + line)
+    fi.close()
+    fo.close()
 
 def usage():
     print "usage: " + sys.argv[0] + " -b input-file-for-building-LM -t input-file-for-testing-LM -o output-file"
