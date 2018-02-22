@@ -54,4 +54,5 @@ I suggest that I should be graded as follows: Full mark
 <Please list any websites and/or people you consulted with for this
 assignment and state their role>
 
-python_tutorial.pdf
+- python_tutorial.pdf
+- Tiago Kieliger: discussed log method and special characters and the end of the strings

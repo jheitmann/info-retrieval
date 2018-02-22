@@ -22,7 +22,7 @@ def build_LM(in_file):
     	label = line.split(' ',1)[0] # label is a language contained in the list languages
     	string = line.split(' ',1)[1] # The actual text, whose language is determined by label
     	if len(string) >= 4: # Check if there is at least one 4-gram
-    		for i in range(0,len(string)-3): # Scan through all the 4-grams
+    		for i in range(0,len(string)-5): # Scan through all the 4-grams, -5 instead of -3 to get rid of special chars
     			four_gram = string[i:i+4]
 	    		for language in languages:
 	    			d.setdefault((language,four_gram),0) 
@@ -54,7 +54,7 @@ def test_LM(in_file, out_file, LM):
     		language_log_prb = {language: 0.0 for language in languages} 
     		stat = ('other',-float('inf')) # Tuple created to track the most likely language
     		for language in languages:
-	    		for i in range(0,len(line)-3): # Scan through all the 4-grams
+	    		for i in range(0,len(line)-5): # Scan through all the 4-grams, -5 instead of -3 to get rid of special chars
 	    			four_gram = line[i:i+4]
 	    			# Add log probability, which is 0 if the 4-gram is not in the LM
 	    			language_log_prb[language] += numpy.log(LM.get((language,four_gram),1.0)) # Add log probability
