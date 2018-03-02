@@ -28,3 +28,11 @@ for o, a in opts:
 if input_directory == None or output_file_postings == None or output_file_dictionary == None:
     usage()
     sys.exit(2)
+
+NUMBER_OF_DOCS = 14818 # Number of documents in the directory directory-of-documents
+
+with open(output_file_dictionary, 'w') as outfile_dict, open(output_file_postings, 'r+', encoding='utf-8') as outfile_post:
+	for i in range(1, number_of_docs+1):
+		doc_path = input_directory + str(i)
+		with open(doc_path, 'r') as next_doc:
+			
