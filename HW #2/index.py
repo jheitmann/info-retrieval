@@ -57,7 +57,7 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
-documents = listdir(input_directory)[:50] # 10 for testing purposes, save in txt file
+documents = sorted(listdir(input_directory))[:50] # 10 for testing purposes, save in txt file
 
 dictionary = {} # Inverted index
 word_number = BidirectionalDict() # word --> number/line is a bijective mapping
