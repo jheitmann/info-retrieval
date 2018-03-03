@@ -56,7 +56,7 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
-documents = listdir(input_directory)[:10] # 10 for testing purposes
+documents = listdir(input_directory)[:50] # 10 for testing purposes, save in txt file
 
 index = {} # Inverted index
 word_number = BidirectionalDict() # word --> number/line is a bijective mapping
@@ -80,7 +80,7 @@ for docID, doc_name in enumerate(documents): # Scan all the documents
 				if index[tokenized_word] == 0: # First occurence of tokenized_word
 					word_number[tokenized_word] = vocab_size # Update word_number
 					#print "A word not seen: " + '(' + word + ')' + '\n' # Debug
-					new_line = new_document(0,docID) + '\n' # flag | docID (5 bytes)
+					new_line = new_document(0,docID) + '\n' # flag | docID (5 bytes), 1st one for debug: pack_bytes(vocab_size,4) + 
 					
 					with open(output_file_postings, 'a') as outfile_post: # Append this new line
 						outfile_post.write(new_line)
@@ -89,13 +89,16 @@ for docID, doc_name in enumerate(documents): # Scan all the documents
 					vocab_size += 1 
 
 				else: # Word already in index
+					#print "------- STATS -------\n"
 					#print "A word in doc nbr " + str(docID) + ": " + '(' + word + ')' + '\n' # Debug
 					line_number = word_number[tokenized_word]
 					#print "Line number: " + str(line_number) + '\n' # Debug
 					linecache.clearcache() # Explain this one
-					posting_list = linecache.getline(output_file_postings,line_number)[:-1] # '\n' ignored
+					posting_list = linecache.getline(output_file_postings,line_number+1)[:-1] # '\n' ignored, explain +1
+					#print "Actual line vs line number: " + str(line_number) + " vs " + str(unpack_string(posting_list[:8])) + '\n'
 					#print "Length of posting list: " + str(len(posting_list)) + '\n' # Debug
-					last_docID = unpack_string(posting_list[-4:], 4)
+					#print "------- END STATS -------\n"
+					last_docID = unpack_string(posting_list[-4:])
 
 					if  last_docID != docID: # Explain args
 						new_line = posting_list + new_document(0,docID) + '\n' # Add auxiliary method?
