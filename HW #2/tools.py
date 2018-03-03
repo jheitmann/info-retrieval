@@ -25,8 +25,8 @@ def pack_bytes(n, nbr_bytes):
     s = s.rjust(nbr_bytes, "\x00")
     return s
 
-def unpack_string(s, nbr_bytes):
-    #print s # Debug
+
+def unpack_string(s, nbr_bytes): # nbr_bytes = len(s)
     n = 0
     weight = 1
     for i in range(nbr_bytes):
@@ -35,11 +35,21 @@ def unpack_string(s, nbr_bytes):
         weight = weight * 0xff
     return n
 
-def new_document(docID):
-    return pack_bytes(0,1) + pack_bytes(docID,4)
+def new_document(flag, docID):
+    return pack_bytes(flag,1) + pack_bytes(docID,4)
 
 def new_pointer(ptr):
-    return pack_bytes(1,1) + pack_bytes(ptr,4)
+    return  pack_bytes(ptr,4)
+
+# Link: https://stackoverflow.com/questions/1063319/reversible-dictionary-for-python
+class BidirectionalDict(dict): 
+    def __setitem__(self, key, val):
+        dict.__setitem__(self, key, val)
+        dict.__setitem__(self, val, key)
+
+    def __delitem__(self, key):
+        dict.__delitem__(self, self[key])
+        dict.__delitem__(self, key)
 
 class Root(object):
     def __init__(self, docID):
