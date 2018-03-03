@@ -13,18 +13,23 @@ def stem_and_casefold(word_to_process):
     word = word.lower()
     return word
 
+def pack_bytes(n, nbr_chars):
+    return format(n, "0"+ str(nbr_chars) + "x")
+
+def unpack_string(s):
+    return int(s,16) # explain 16
+
 """
 Packs integer n into its hexadecimal representation string,
 of length nbr_bytes (Big Endian format)
 """
-def pack_bytes(n, nbr_bytes):
+def pack_bytes_old(n, nbr_bytes):
     s = ""
     while n:
         s = chr(n % 0x100) + s
         n = n / 0x100
     s = s.rjust(nbr_bytes, "\x00")
     return s
-
 
 def unpack_string(s, nbr_bytes): # nbr_bytes = len(s)
     n = 0
@@ -36,10 +41,10 @@ def unpack_string(s, nbr_bytes): # nbr_bytes = len(s)
     return n
 
 def new_document(flag, docID):
-    return pack_bytes(flag,1) + pack_bytes(docID,4)
+    return pack_bytes(flag,1) + pack_bytes(docID,8)
 
 def new_pointer(ptr):
-    return  pack_bytes(ptr,4)
+    return  pack_bytes(ptr,8)
 
 # Link: https://stackoverflow.com/questions/1063319/reversible-dictionary-for-python
 class BidirectionalDict(dict): 
@@ -64,8 +69,6 @@ class Root(object):
 
     def insert_after(self, predecessor, element): # Needs to be implemented
         return 
-
-
 
 class Element(object):
     def __init__(self, docID):
