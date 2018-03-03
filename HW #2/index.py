@@ -87,7 +87,7 @@ for doc_name in documents: # Scan all the documents
 					with open(output_file_postings, 'a') as outfile_post: # Append this new line
 						outfile_post.write(new_line)
 
-					dictionary[reduced_word] +=1
+					dictionary[reduced_word] += 1
 					vocab_size += 1 
 
 				else: # Word already in index
@@ -123,9 +123,9 @@ with open(output_file_postings, 'r') as outfile_post:
 		length_skip_ptr = floor+1 # No skip pointers overlap, hence l * 9chars(1: flag | 8: docID)
 		new_line = next_posting_list
 		for j in range(nbr_skip_ptr):
-			ptr_addr = 9*(1+j*length_skip_ptr) + 8*j # Explain this formula
-			ptr = ptr_addr+9*length_skip_ptr-1 # Explain this formula
-			new_line = new_line[:ptr_addr] + new_pointer(ptr) + new_line[ptr_addr:]
+			ptr_addr = 9*(j*length_skip_ptr) + 8*j # Explain this formula
+			ptr = ptr_addr+9*(length_skip_ptr+1)-1 # Explain this formula
+			new_line = new_line[:ptr_addr] + new_document(1, unpack_string(new_line[ptr_addr:ptr_addr+9])) + new_pointer(ptr) + new_line[ptr_addr+9:] # Explain
 		fp.write(new_line)
 
 fp.seek(0)
