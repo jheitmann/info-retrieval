@@ -7,6 +7,34 @@ import getopt
 def tokenize(word_to_process): 
 	return word_to_process
 
+"""
+Packs integer n into its hexadecimal representation string,
+of length nbr_bytes (Big Endian format)
+"""
+def pack_bytes(n, nbr_bytes):
+    s = ""
+    while n:
+        s = chr(n % 0x100) + s
+        n = n / 0x100
+    s = s.rjust(nbr_bytes, "\x00")
+    return s
+
+def unpack_string(s, nbr_bytes):
+    print s # Debug
+    n = 0
+    weight = 1
+    for i in range(nbr_bytes):
+        n += ord(s[-1]) * weight
+        s = s[:-1]
+        weight = weight * 0xff
+    return n
+
+def new_document(docID):
+    return pack_bytes(0,1) + pack_bytes(docID,4)
+
+def new_pointer(ptr):
+    return pack_bytes(1,1) + pack_bytes(ptr,4)
+
 class Root(object):
     def __init__(self, docID):
         self.head = Element(docID)

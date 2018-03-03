@@ -9,9 +9,7 @@ try:
    import cPickle as pickle
 except:
    import pickle
-from tools import tokenize
-from tools import Root
-from tools import Element
+from tools import *
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
@@ -45,8 +43,8 @@ vocab_size = 0
 
 with open(output_file_dictionary, 'w') as outfile_dict, open(output_file_postings, 'r+') as outfile_post: # Problem with no such file
 	# Create the index (Part 1)
-	for doc in range(1, NUMBER_OF_DOCS+1):
-		doc_path = input_directory + str(doc)
+	for docID in range(1, NUMBER_OF_DOCS+1):
+		doc_path = input_directory + str(docID)
 		with open(doc_path, 'r') as next_doc:
 			for line in next_doc:
 				words = line.split(' ')
@@ -54,7 +52,8 @@ with open(output_file_dictionary, 'w') as outfile_dict, open(output_file_posting
 					tokenized_word = tokenize(word)
 					index.setdefault(tokenized_word, (vocab_size, 0, 777)) # 777 should be replaced by offset...
 					if index[tokenized_word][1] == 0 :
-						new_line = pickle.dumps(Root(doc)) + '\n' # Serializes a new root, containing doc
+						print "A word not seen: " + '(' + word + ')' + '\n' # Debug
+						new_line = new_document(docID) + '\n' # Serializes a new root, containing docID, problem: structure
 						outfile_post.seek(0,2) # 2: we want to append the new words posting list
 						outfile_post.write(new_line)
 						index[tokenized_word] = (index[tokenized_word][0], index[tokenized_word][1]+1, index[tokenized_word][2]) # First occurence, change this
@@ -66,10 +65,10 @@ with open(output_file_dictionary, 'w') as outfile_dict, open(output_file_posting
 						posting_list
 						"""
 						line_number = index[tokenized_word][0]
-						posting_list = pickle.loads(linecache.getline(output_file_postings,line_number)) # Cache -> clear, -1 : remove newline [:-1]
-						if posting_list.last.docID != doc:
-							posting_list.append_element(Element(doc))
-							new_line = pickle.dumps(posting_list) + '\n'
+						print "A word: " + '(' + word + ')' + '\n' # Debug
+						posting_list = linecache.getline(output_file_postings,line_number)[:-1] # Newline ignored, problem:changes not saved?
+						if unpack_string(posting_list[-4:],4) != docID: # Explain args
+							new_line = posting_list + new_document(docID) + '\n' # Add auxiliary method?
 							# Need to overwrite the whole file
 							output_file.seek(0)
 							fp = tempfile.TemporaryFile() # temporay file
@@ -88,5 +87,4 @@ with open(output_file_dictionary, 'w') as outfile_dict, open(output_file_posting
 							fp.close()
 
 							index[tokenized_word] = (index[tokenized_word][0], index[tokenized_word][1]+1, index[tokenized_word][2]) # Change this
-	linecache.clearcache()
 	# Add Skip pointers (Part 2)
