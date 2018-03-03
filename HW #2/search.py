@@ -4,6 +4,11 @@ import nltk
 import sys
 import getopt
 from tools import *
+try:
+   import cPickle as pickle
+except:
+   import pickle
+
 """ 
 Shunting_yard algorithm that parses boolean queries. 
 Based on pseudo code given at https://en.wikipedia.org/wiki/Shunting-yard_algorithm
@@ -60,25 +65,29 @@ def prepare_queries(queries_file_name, postings_file_name, dictionnary):
     queries = open(queries_file_name, "r")
     postings = open(postings_file_name, "r")
     postings_cache = {}
-    for line in queries:
+    for line in queries.read().splitlines():
         prepared_query = []
-        for term in line:
+
+        splitted = line.split(' ')
+        for term in splitted:
             if is_operator(term):
                 prepared_query.append(term)
             else:
                 token = stem_and_casefold(term)
-                offset = dictionnary[token] #TODO
+                offset = dictionnary[token][1]
                 # this posting list has not already been read from disk thus we cache it for efficiency
-                if not pointer in postings_cache:
+                if not offset in postings_cache:
                     postings.seek(offset)
-                    postings_cache[offset] = postings.readline()
-
-                posting_list = postings_cache[pointer]
-                prepared_query.append(posting_list)
+                    line = postings.readline()
+                    line = line[:-1] #TODO DO MANUALLY
+                    postings_cache[offset] = posting_list(line)
+                posting = postings_cache[offset]
+                prepared_query.append(posting)
+                print(token+" : " + str(posting.to_string()))
         post_fixed_prepared_query = shunting_yard(prepared_query)
         output.append(post_fixed_prepared_query)
-    close(queries)
-    close(postings)
+    queries.close()
+    postings.close()
     return output
 
 """""
@@ -99,9 +108,46 @@ def evaluate(query):
             stack.append(token)
     return stack.pop()
 
+def and_op_skip(postings1, postings2):
+    result = ""
+    element1 = postings1.next()
+    element2 = postings2.next()
+
+    while element1 is not None and element2 is not None:
+
+        if element1 is not None and element1 < element2:
+            skip_pointer = postings1.skip_pointer()
+            if skip_pointer:
+                skip_value = postings1.value_at(skip_pointer)
+                if skip_value <= element2:
+                    element1 = skip_value
+                    postings1.jump(skip_pointer)
+                else:
+                    element1 = postings1.next()
+            else:
+                 element1 = postings1.next()
+
+        elif element2 is not None and element1 > element2:
+            skip_pointer = postings2.skip_pointer()
+            if skip_pointer:
+                skip_value = postings2.value_at(skip_pointer)
+                if skip_value <= element1:
+                    element2 = skip_value
+                    postings2.jump(skip_pointer)
+                else:
+                    element2 = postings2.next()
+            else:
+                element2 = postings2.next()
+
+        else:
+            result += new_document(0, element1)
+            element1 = postings1.next()
+            element2 = postings2.next()
+
+    return posting_list(result)
+
 def and_op(postings1, postings2):
     result = ""
-
     element1 = postings1.next()
     element2 = postings2.next()
 
@@ -153,18 +199,23 @@ def or_op(postings1, postings2):
 class posting_list(object):
     pointer = 0
     list = []
-    
+
     def __init__(self, list):
         self.list = list
         return
 
+    def jump(self, position):
+        self.pointer = position
+
     def rewind(self):
-        self.pointer = 0
+        self.jump(0)
+
+    def value_at(self, position):
+        return unpack_string(self.list[position+1:position+9])
 
     def next(self):
         if not self.pointer < len(self.list):
             return None
-
         element = unpack_string(self.list[self.pointer+1:self.pointer+9])
         if self.skip_pointer() is not None:
             self.pointer += 17
@@ -182,11 +233,16 @@ class posting_list(object):
         result = ""
         element = self.next()
         while element is not None:
-            result += element
-        return element
+            result += str(element)
+            element = self.next()
+            if element is not None:
+                result += " "
+        return result
 
+# term -> (doc_freq, offset_in_bytes)
 def prepare_dictionnary(dictionnary_file_name):
-    dictionnary = {}
+    file = open(dictionary_file, "r")
+    dictionnary = pickle.load(file)
     return dictionnary
 
 def search(dictionnary_file_name, postings_file_name, queries_file_name, file_of_output_name):
@@ -194,8 +250,8 @@ def search(dictionnary_file_name, postings_file_name, queries_file_name, file_of
     queries = prepare_queries(queries_file_name, postings_file_name, dictionnary)
     output = open(file_of_output_name, "w")
     for query in queries:
-        output.write(evaluate(query))
-    close(output)
+        output.write(str(evaluate(query).to_string()))
+    output.close()
 
 
 def usage():
@@ -227,6 +283,7 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     usage()
     sys.exit(2)
 
+"""
 p1 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x08')
 p2 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x09')
 p3 = posting_list('\x01\x00\x00\x00\x08\x00\x00\x00\x03\x00\x00\x00\x00\x09')
@@ -236,3 +293,5 @@ element = p.next()
 while(element is not None):
     #print(element)
     element = p.next()
+"""
+search(dictionary_file, postings_file, file_of_queries, file_of_output)
