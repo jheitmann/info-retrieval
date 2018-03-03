@@ -56,7 +56,7 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
-documents = listdir(input_directory).[:20] # 10 for testing purposes
+documents = listdir(input_directory)[:10] # 10 for testing purposes
 
 index = {} # Inverted index
 word_number = BidirectionalDict() # word --> number/line is a bijective mapping
@@ -74,7 +74,6 @@ for docID, doc_name in enumerate(documents): # Scan all the documents
 			words = line.split(' ') # Should not be done here, tokenize() will take care of this
 
 			for word in words:
-				linecache.clearcache() # Explain this one
 				tokenized_word = tokenize(word) # Change this
 				index.setdefault(tokenized_word,0)
 
@@ -90,9 +89,10 @@ for docID, doc_name in enumerate(documents): # Scan all the documents
 					vocab_size += 1 
 
 				else: # Word already in index
-					#print "A word: " + '(' + word + ')' + '\n' # Debug
+					#print "A word in doc nbr " + str(docID) + ": " + '(' + word + ')' + '\n' # Debug
 					line_number = word_number[tokenized_word]
 					#print "Line number: " + str(line_number) + '\n' # Debug
+					linecache.clearcache() # Explain this one
 					posting_list = linecache.getline(output_file_postings,line_number)[:-1] # '\n' ignored
 					#print "Length of posting list: " + str(len(posting_list)) + '\n' # Debug
 					last_docID = unpack_string(posting_list[-4:], 4)
@@ -112,4 +112,5 @@ with open(output_file_postings, 'r') as outfile_post, open(output_file_dictionar
 		index[tokenized_word] = (index[tokenized_word], offset) 
 		offset += len(next_posting_list)
 
-	outfile_dict.write(pickle.dumps(index))
+	pickle.dump(index,outfile_dict)
+	outfile_dict.flush()

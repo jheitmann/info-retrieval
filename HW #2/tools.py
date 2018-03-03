@@ -58,8 +58,6 @@ class Root(object):
     def insert_after(self, predecessor, element): # Needs to be implemented
         return 
 
-
-
 class Element(object):
     def __init__(self, docID):
         self.docID = docID
