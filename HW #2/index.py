@@ -5,6 +5,7 @@ import sys
 import getopt
 import linecache
 import tempfile
+import math
 try:
    import cPickle as pickle
 except:
@@ -58,40 +59,41 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 
 documents = listdir(input_directory)[:50] # 10 for testing purposes, save in txt file
 
-index = {} # Inverted index
+dictionary = {} # Inverted index
 word_number = BidirectionalDict() # word --> number/line is a bijective mapping
 vocab_size = 0
 
 open(output_file_postings,'w').close() # Create empty file
 
-# Create the index (Part 1)
-for docID, doc_name in enumerate(documents): # Scan all the documents
+#============================ Create the index (Part 1) ============================#
+for doc_name in documents: # Scan all the documents
 	doc_path = input_directory + doc_name # Absolute path of the current document
+	docID = int(doc_name)
 
 	with open(doc_path, 'r') as next_doc:
 
-		for line in next_doc: 
-			words = line.split(' ') # Should not be done here, tokenize() will take care of this
+		for line in next_doc:
+			words = nltk.word_tokenize(line) # Tokenized words
 
 			for word in words:
-				tokenized_word = tokenize(word) # Change this
-				index.setdefault(tokenized_word,0)
+				reduced_word = stem_and_casefold(word) # Change this
+				dictionary.setdefault(reduced_word,0)
 
-				if index[tokenized_word] == 0: # First occurence of tokenized_word
-					word_number[tokenized_word] = vocab_size # Update word_number
+				if dictionary[reduced_word] == 0: # First occurence of reduced_word
+					word_number[reduced_word] = vocab_size # Update word_number
 					#print "A word not seen: " + '(' + word + ')' + '\n' # Debug
 					new_line = new_document(0,docID) + '\n' # flag | docID (5 bytes), 1st one for debug: pack_bytes(vocab_size,4) + 
 					
 					with open(output_file_postings, 'a') as outfile_post: # Append this new line
 						outfile_post.write(new_line)
 
-					index[tokenized_word] +=1
+					dictionary[reduced_word] +=1
 					vocab_size += 1 
 
 				else: # Word already in index
 					#print "------- STATS -------\n"
 					#print "A word in doc nbr " + str(docID) + ": " + '(' + word + ')' + '\n' # Debug
-					line_number = word_number[tokenized_word]
+					line_number = word_number[reduced_word]
 					#print "Line number: " + str(line_number) + '\n' # Debug
 					linecache.clearcache() # Explain this one
 					posting_list = linecache.getline(output_file_postings,line_number+1)[:-1] # '\n' ignored, explain +1
@@ -103,17 +105,45 @@ for docID, doc_name in enumerate(documents): # Scan all the documents
 					if  last_docID != docID: # Explain args
 						new_line = posting_list + new_document(0,docID) + '\n' # Add auxiliary method?
 						replace_line(output_file_postings, line_number, new_line) # Need to overwrite the whole file
-						index[tokenized_word] += 1
-# Add Skip pointers (Part 2)
+						dictionary[reduced_word] += 1
 
-# Write index to file (Part3)
+
+#============================ Add Skip pointers (Part 2) ============================#
+fp = tempfile.TemporaryFile()
+
+#print "Vocabulary size: " + str(vocab_size) + '\n' # Debug
+
+with open(output_file_postings, 'r') as outfile_post:
+	for i, next_posting_list in enumerate(outfile_post):
+		#print "Ith word: " + str(i) + '\n' # Debug
+		reduced_word = word_number[i]
+		doc_frequency = dictionary[reduced_word]
+		floor = int(math.floor(math.sqrt((len(next_posting_list)-1)/9))) # -1: '\n', 9 = length of docID
+		nbr_skip_ptr = floor-1  # Explain this value
+		length_skip_ptr = floor+1 # No skip pointers overlap, hence l * 9chars(1: flag | 8: docID)
+		new_line = next_posting_list
+		for j in range(nbr_skip_ptr):
+			ptr_addr = 9*(1+j*length_skip_ptr) + 8*j # Explain this formula
+			ptr = ptr_addr+9*length_skip_ptr-1 # Explain this formula
+			new_line = new_line[:ptr_addr] + new_pointer(ptr) + new_line[ptr_addr:]
+		fp.write(new_line)
+
+fp.seek(0)
+with open(output_file_postings, 'w') as outfile_post:
+	for next_posting_list in fp:
+		outfile_post.write(next_posting_list)
+fp.close()
+
+
+#============================ Write index to file (Part3) ============================#
 with open(output_file_postings, 'r') as outfile_post, open(output_file_dictionary, 'w') as outfile_dict: # Problem with no such file
 	offset = 0
 
 	for i, next_posting_list in enumerate(outfile_post):
-		tokenized_word = word_number[i]
-		index[tokenized_word] = (index[tokenized_word], offset) 
+		#print "Ith word: " + str(i) + '\n' # Debug
+		reduced_word = word_number[i]
+		dictionary[reduced_word] = (dictionary[reduced_word], offset) 
 		offset += len(next_posting_list)
 
-	pickle.dump(index,outfile_dict)
+	pickle.dump(dictionary,outfile_dict)
 	outfile_dict.flush()
