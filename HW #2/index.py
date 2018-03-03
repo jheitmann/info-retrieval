@@ -57,7 +57,7 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
-documents = sorted(listdir(input_directory))[:50] # 10 for testing purposes, save in txt file
+documents = sorted(map(int, listdir(input_directory)[:50])) # 10 for testing purposes, save in txt file
 
 dictionary = {} # Inverted index
 word_number = BidirectionalDict() # word --> number/line is a bijective mapping
@@ -66,9 +66,8 @@ vocab_size = 0
 open(output_file_postings,'w').close() # Create empty file
 
 #============================ Create the index (Part 1) ============================#
-for doc_name in documents: # Scan all the documents
-	doc_path = input_directory + doc_name # Absolute path of the current document
-	docID = int(doc_name)
+for docID in documents: # Scan all the documents
+	doc_path = input_directory + str(docID) # Absolute path of the current document
 
 	with open(doc_path, 'r') as next_doc:
 
