@@ -49,31 +49,36 @@ def is_left_associative(token):
     return token == 'AND' or token == 'OR'
     #return token == '-' or token == '+' or token == '/' or token == 'x'
 
-"""""
-    Transforms a post-fix boolean expression with raw tokens as operands into an expression with the tokens
-    replaced by the corresponding posting lists
-"""""
 
-def prepare_query(query):
-    output = []
-    for term in query:
-        if is_operator(term):
-            output.append(term)
-        else:
-            token = tools.tokenize(term)
-            output.append(dictionnary(token))
-    return output
 
 """""
     Reads the file "queries_file_name" which contains a query by line and transform it in a list of queries where
     the tokens are posting lists
 """""
-def prepare_queries(queries_file_name):
+def prepare_queries(queries_file_name, postings_file_name, dictionnary):
     output = []
     queries = open(queries_file_name, "r")
+    postings = open(postings_file_name, "r")
+    postings_cache = {}
     for line in queries:
-        output.append(prepare_query(line))
+        prepared_query = []
+        for term in line:
+            if is_operator(term):
+                prepared_query.append(term)
+            else:
+                token = stem_and_casefold(term)
+                offset = dictionnary[token] #TODO
+                # this posting list has not already been read from disk thus we cache it for efficiency
+                if not pointer in postings_cache:
+                    postings.seek(offset)
+                    postings_cache[offset] = postings.readline()
+
+                posting_list = postings_cache[pointer]
+                prepared_query.append(posting_list)
+        post_fixed_prepared_query = shunting_yard(prepared_query)
+        output.append(post_fixed_prepared_query)
     close(queries)
+    close(postings)
     return output
 
 """""
@@ -95,15 +100,29 @@ def evaluate(query):
     return stack.pop()
 
 def and_op(postings1, postings2):
-    #TODO
-    return None
+    result = ""
+
+    element1 = postings1.next()
+    element2 = postings2.next()
+
+    while element1 is not None and element2 is not None:
+        if element1 is not None and element1 < element2:
+            element1 = postings1.next()
+        elif element2 is not None and element1 > element2:
+            element2 = postings2.next()
+        else:
+            result += new_document(0, element1)
+            element1 = postings1.next()
+            element2 = postings2.next()
+
+    return posting_list(result)
 
 def not_op(postings):
     #TODO
     return None
 
 def or_op(postings1, postings2):
-    result = []
+    result = ""
 
     element1 = postings1.next()
     element2 = postings2.next()
@@ -116,25 +135,25 @@ def or_op(postings1, postings2):
     while element1 is not None or element2 is not None:
 
         if element2 is None or (element1 is not None and element1 < element2):
-            result.append(element1)
+            result += new_document(0, element1)
             element1 = postings1.next()
 
         elif element1 is None or (element2 is not None and element1 > element2):
-            result.append(element2)
+            result += new_document(0, element2)
             element2 = postings2.next()
 
         else:
-            result.append(element1)
+            result += new_document(0, element1)
             element1 = postings1.next()
             element2 = postings2.next()
 
-    return result
+    return posting_list(result)
 
 
 class posting_list(object):
     pointer = 0
     list = []
-
+    
     def __init__(self, list):
         self.list = list
         return
@@ -146,19 +165,33 @@ class posting_list(object):
         if not self.pointer < len(self.list):
             return None
 
-        element = unpack_string(self.list[self.pointer+1:self.pointer+5], 4)
+        element = unpack_string(self.list[self.pointer+1:self.pointer+9])
         if self.skip_pointer() is not None:
-            self.pointer += 9
+            self.pointer += 17
         else:
-            self.pointer += 5
+            self.pointer += 9
         return element
 
     def skip_pointer(self):
-        if unpack_string(self.list[self.pointer], 1) == 0:
+        if unpack_string(self.list[self.pointer]) == 0:
             return None
-        return unpack_string(self.list[self.pointer + 5: self.pointer + 5 + 4], 4)
+        return unpack_string(self.list[self.pointer + 5: self.pointer + 5 + 4])
 
-def search(dictionnary, postings_file_name, queries, file_of_output_name):
+    def to_string(self):
+        self.rewind()
+        result = ""
+        element = self.next()
+        while element is not None:
+            result += element
+        return element
+
+def prepare_dictionnary(dictionnary_file_name):
+    dictionnary = {}
+    return dictionnary
+
+def search(dictionnary_file_name, postings_file_name, queries_file_name, file_of_output_name):
+    dictionnary = prepare_dictionnary(dictionnary_file_name)
+    queries = prepare_queries(queries_file_name, postings_file_name, dictionnary)
     output = open(file_of_output_name, "w")
     for query in queries:
         output.write(evaluate(query))
@@ -196,5 +229,10 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
 
 p1 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x08')
 p2 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x09')
-p = or_op(p1,p2)
-print(p)
+p3 = posting_list('\x01\x00\x00\x00\x08\x00\x00\x00\x03\x00\x00\x00\x00\x09')
+p = and_op(p3, or_op(p1,p2))
+#p = or_op(p, p3)
+element = p.next()
+while(element is not None):
+    #print(element)
+    element = p.next()
