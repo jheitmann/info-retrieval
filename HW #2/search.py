@@ -103,8 +103,60 @@ def not_op(postings):
     return None
 
 def or_op(postings1, postings2):
-    #TODO
-    return None
+    result = []
+
+    element1 = postings1.next()
+    element2 = postings2.next()
+
+    if element1 is None:
+        return postings2
+    if element2 is None:
+        return postings1
+
+    while element1 is not None or element2 is not None:
+
+        if element2 is None or (element1 is not None and element1 < element2):
+            result.append(element1)
+            element1 = postings1.next()
+
+        elif element1 is None or (element2 is not None and element1 > element2):
+            result.append(element2)
+            element2 = postings2.next()
+
+        else:
+            result.append(element1)
+            element1 = postings1.next()
+            element2 = postings2.next()
+
+    return result
+
+
+class posting_list(object):
+    pointer = 0
+    list = []
+
+    def __init__(self, list):
+        self.list = list
+        return
+
+    def rewind(self):
+        self.pointer = 0
+
+    def next(self):
+        if not self.pointer < len(self.list):
+            return None
+
+        element = unpack_string(self.list[self.pointer+1:self.pointer+5], 4)
+        if self.skip_pointer() is not None:
+            self.pointer += 9
+        else:
+            self.pointer += 5
+        return element
+
+    def skip_pointer(self):
+        if unpack_string(self.list[self.pointer], 1) == 0:
+            return None
+        return unpack_string(self.list[self.pointer + 5: self.pointer + 5 + 4], 4)
 
 def search(dictionnary, postings_file_name, queries, file_of_output_name):
     output = open(file_of_output_name, "w")
@@ -112,7 +164,7 @@ def search(dictionnary, postings_file_name, queries, file_of_output_name):
         output.write(evaluate(query))
     close(output)
 
-"""""
+
 def usage():
     print
     "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
@@ -141,4 +193,8 @@ for o, a in opts:
 if dictionary_file == None or postings_file == None or file_of_queries == None or file_of_output == None:
     usage()
     sys.exit(2)
-"""""
+
+p1 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x08')
+p2 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x09')
+p = or_op(p1,p2)
+print(p)

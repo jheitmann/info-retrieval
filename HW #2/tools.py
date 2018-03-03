@@ -3,9 +3,15 @@ import re
 import nltk
 import sys
 import getopt
+import nltk
+from nltk.stem.porter import *
 
-def tokenize(word_to_process): 
-	return word_to_process
+def stem_and_casefold(word_to_process):
+    #TODO may want to initialize stemer outside function
+    stemmer = PorterStemmer()
+    word = stemmer.stem(word_to_process)
+    word = word.lower()
+    return word
 
 """
 Packs integer n into its hexadecimal representation string,
@@ -20,7 +26,7 @@ def pack_bytes(n, nbr_bytes):
     return s
 
 def unpack_string(s, nbr_bytes):
-    print s # Debug
+    #print s # Debug
     n = 0
     weight = 1
     for i in range(nbr_bytes):
