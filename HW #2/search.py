@@ -71,17 +71,12 @@ def is_left_associative(token):
     the query in post-fix notation, where the terms have been stemmed and case-folded and then replaced
     by their corresponding posting-list as found from the inverted index.
 """""
-def prepare_queries(queries_file_name, postings_file_name, dictionary_file_name):
+def prepare_queries(queries_file_name, postings_file_name, dictionary):
     # output list of queries
     queries = []
 
     raw_queries = open(queries_file_name, "r")
     postings = open(postings_file_name, "r")
-
-    # the dictionary is loaded from file using the pickle library
-    serialized_dictionary = open(dictionary_file_name, "r")
-    dictionary = pickle.load(serialized_dictionary)
-    serialized_dictionary.close()
 
     # the postings cache avoids retrieving the same postings list from disk (costly) multiple times
     postings_cache = {}
@@ -122,7 +117,6 @@ def prepare_queries(queries_file_name, postings_file_name, dictionary_file_name)
                 # offset (= pointer) stored in the dictionary (= inverted index)
                 if term in dictionary:
                     offset = dictionary[term][1]
-
                     # this posting list has not already been read from disk thus we cache it for efficiency
                     if offset is not None and not offset in postings_cache:  # TODO offset not in instead of not offset in
                         postings.seek(offset)
@@ -134,7 +128,7 @@ def prepare_queries(queries_file_name, postings_file_name, dictionary_file_name)
 
                 # if the term is not in the training corpus the corresponding posting-list is empty
                 else:
-                    postings = posting_list([])
+                    posting = posting_list([])
 
                 # we append the term to the query
                 prepared_query.append(posting)
@@ -258,12 +252,13 @@ def not_op(postings1, corpus):
     postings2 = corpus
     postings2.rewind
 
+    element1 = postings1.next()
+    element2 = postings2.next()
+
+
     # if postings1 is empty, then its inverse is the whole corpus
     if element1 is None:
         return postings2
-
-    element1 = postings1.next()
-    element2 = postings2.next()
 
     # as long as we haven't reached the end of both lists
     while element1 is not None or element2 is not None:
@@ -329,6 +324,7 @@ def or_op(postings1, postings2):
 
 """""
     This class encapsulates a raw posting-list and offers a convenient interface to interact with the posting-list
+    the raw posting list is of the following format : #TODO EXPLAIN FORMAT
 """""
 class posting_list(object):
     pointer = 0
@@ -337,15 +333,19 @@ class posting_list(object):
         self.list = list
         return
 
+    # jumps at the specified position in the list (absolute position)
     def jump(self, position):
         self.pointer = position
 
+    # jumps at the first element in the list
     def rewind(self):
         self.jump(0)
 
+    # returns the value of the specified element in the list, the position must point to the first byte of the element
     def value_at(self, position):
         return unpack_string(self.list[position+1:position+9])
 
+    # next jumps to the next element (or None if no element) and returns it. Skip pointers are taken into account.
     def next(self):
         if not self.pointer < len(self.list):
             return None
@@ -356,11 +356,14 @@ class posting_list(object):
             self.pointer += 9
         return element
 
+    # returns a skip_pointer (= absolute offset in the posting file) if there is one corresponding to the current
+    # element or none otherwise
     def skip_pointer(self):
         if unpack_string(self.list[self.pointer]) == 0:
             return None
         return unpack_string(self.list[self.pointer + 5: self.pointer + 5 + 4])
 
+    # iterates through the posting_list to output a string version of it
     def to_string(self):
         self.rewind()
         result = ""
@@ -372,20 +375,37 @@ class posting_list(object):
                 result += " "
         return result
 
+"""""
+    This function performs the queries given in the queries_file_name file using the given
+    dictionary_file_name file and the posting_file_name file and outputs the result in the
+    file_of_output_name file
+"""""
 def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_output_name):
-    queries = prepare_queries(queries_file_name, postings_file_name, dictionary_file_name)
+
+    # the dictionary is loaded from file using the pickle library
+    serialized_dictionary = open(dictionary_file_name, "r")
+    dictionary = pickle.load(serialized_dictionary)
+    serialized_dictionary.close()
+
+    # queries are prepared using the above defined helper function
+    queries = prepare_queries(queries_file_name, postings_file_name, dictionary)
+
+    # the output file containing the results of the queries, each result on a different line
     output = open(file_of_output_name, "w")
 
-    #EXPLAIN THIS DODO
+
+    # the corpus (= posting list containing every document) is retrieved to be used for NOT operations.
     postings = open(postings_file_name, "r")
     postings.seek(dictionary[DOC_LIST][1])
     corpus = postings.readline()
     corpus = corpus[:-1]  # TODO DO MANUALLY
     postings.close()
+
+    # every query is evaluated and the output written to the output file
     for query in queries:
         output.write(str(evaluate(query, corpus).to_string())+"\n")
-    output.close()
 
+    output.close()
 
 def usage():
     print
