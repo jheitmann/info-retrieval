@@ -117,6 +117,7 @@ def prepare_queries(queries_file_name, postings_file_name, dictionary):
                 # offset (= pointer) stored in the dictionary (= inverted index)
                 if term in dictionary:
                     offset = dictionary[term][1]
+
                     # this posting list has not already been read from disk thus we cache it for efficiency
                     if offset is not None and not offset in postings_cache:  # TODO offset not in instead of not offset in
                         postings.seek(offset)
@@ -389,6 +390,7 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
 
     # queries are prepared using the above defined helper function
     queries = prepare_queries(queries_file_name, postings_file_name, dictionary)
+
 
     # the output file containing the results of the queries, each result on a different line
     output = open(file_of_output_name, "w")
