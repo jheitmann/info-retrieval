@@ -15,8 +15,7 @@ Based on pseudo code given at https://en.wikipedia.org/wiki/Shunting-yard_algori
 """
 
 def shunting_yard(query):
-    operators_precedence = {'OR': 1, 'AND': 2, 'OR': 3, '(': 4, ')': 4}
-    # operators_precedence = {'-': 2, '+': 2, '/': 3, 'x': 3, '^': 4, '(': 5, ')': 5}
+    operators_precedence = {'OR': 1, 'AND': 2, 'OR': 3, 'NOT': 4, '(': 5, ')': 5}
     output = []
     operator_stack = []
     for token in query:
@@ -45,14 +44,12 @@ def last(stack):
 
 def is_operator(token):
     return token == 'AND' or token == 'OR' or token == 'NOT'
-    #return token == '-' or token == '+' or token == '/' or token == '^' or token == 'x'
 
 def is_bracket(token):
     return token == '(' or token == ')'
 
 def is_left_associative(token):
     return token == 'AND' or token == 'OR'
-    #return token == '-' or token == '+' or token == '/' or token == 'x'
 
 
 
@@ -60,21 +57,27 @@ def is_left_associative(token):
     Reads the file "queries_file_name" which contains a query by line and transform it in a list of queries where
     the tokens are posting lists
 """""
-def prepare_queries(queries_file_name, postings_file_name, dictionnary):
+def prepare_queries(queries_file_name, postings_file_name, dictionary):
     output = []
     queries = open(queries_file_name, "r")
     postings = open(postings_file_name, "r")
     postings_cache = {}
     for line in queries.read().splitlines():
         prepared_query = []
-
         splitted = line.split(' ')
         for term in splitted:
             if is_operator(term):
                 prepared_query.append(term)
             else:
+                if(term[0] == '('):
+                    term = term[1:len(term)]
+                    prepared_query.append('(')
+                right_parenthesis = False
+                if(term[len(term)-1] == ')'):
+                    term = term[0:len(term)-1]
+                    right_parenthesis = True
                 token = stem_and_casefold(term)
-                offset = dictionnary[token][1]
+                offset = dictionary[token][1]
                 # this posting list has not already been read from disk thus we cache it for efficiency
                 if not offset in postings_cache:
                     postings.seek(offset)
@@ -83,6 +86,8 @@ def prepare_queries(queries_file_name, postings_file_name, dictionnary):
                     postings_cache[offset] = posting_list(line)
                 posting = postings_cache[offset]
                 prepared_query.append(posting)
+                if right_parenthesis:
+                    prepared_query.append(")")
                 #print(token+" : " + str(posting.to_string()))
         post_fixed_prepared_query = shunting_yard(prepared_query)
         output.append(post_fixed_prepared_query)
@@ -266,21 +271,18 @@ class posting_list(object):
         return result
 
 # term -> (doc_freq, offset_in_bytes)
-def prepare_dictionnary(dictionnary_file_name):
-    file = open(dictionary_file, "r")
-    dictionnary = pickle.load(file)
-    return dictionnary
+def prepare_dictionary(dictionary_file_name):
+    file = open(dictionary_file_name, "r")
+    dictionary = pickle.load(file)
+    return dictionary
 
-def search(dictionnary_file_name, postings_file_name, queries_file_name, file_of_output_name):
-    dictionnary = prepare_dictionnary(dictionnary_file_name)
-    queries = prepare_queries(queries_file_name, postings_file_name, dictionnary)
+def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_output_name):
+    dictionary = prepare_dictionary(dictionary_file_name)
+    queries = prepare_queries(queries_file_name, postings_file_name, dictionary)
     output = open(file_of_output_name, "w")
 
     for query in queries:
-        print(query)
-        print(str(evaluate(query).to_string()))
-        print("\n")
-        output.write(str(evaluate(query, dictionnary[DOC_LIST   ]).to_string())+"\n")
+        output.write(str(evaluate(query, dictionary[DOC_LIST]).to_string())+"\n")
     output.close()
 
 
@@ -313,15 +315,4 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     usage()
     sys.exit(2)
 
-"""
-p1 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x08')
-p2 = posting_list('\x01\x00\x00\x00\x07\x00\x00\x00\x03\x00\x00\x00\x00\x09')
-p3 = posting_list('\x01\x00\x00\x00\x08\x00\x00\x00\x03\x00\x00\x00\x00\x09')
-p = and_op(p3, or_op(p1,p2))
-#p = or_op(p, p3)
-element = p.next()
-while(element is not None):
-    #print(element)
-    element = p.next()
-"""
 search(dictionary_file, postings_file, file_of_queries, file_of_output)
