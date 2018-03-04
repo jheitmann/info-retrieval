@@ -83,7 +83,7 @@ def prepare_queries(queries_file_name, postings_file_name, dictionnary):
                     postings_cache[offset] = posting_list(line)
                 posting = postings_cache[offset]
                 prepared_query.append(posting)
-                print(token+" : " + str(posting.to_string()))
+                #print(token+" : " + str(posting.to_string()))
         post_fixed_prepared_query = shunting_yard(prepared_query)
         output.append(post_fixed_prepared_query)
     queries.close()
@@ -93,7 +93,7 @@ def prepare_queries(queries_file_name, postings_file_name, dictionnary):
 """""
     Evaluates a post-fix expression where the operands are roots of linked lists and the operators are boolean
 """""
-def evaluate(query):
+def evaluate(query, corpus):
     stack = []
     for token in query:
         if is_operator(token):
@@ -102,7 +102,7 @@ def evaluate(query):
             if token == 'OR' :
                 result = or_op(stack.pop())
             if token == 'NOT' :
-                result = not_op(stack.pop())
+                result = not_op(stack.pop(), corpus)
             stack.append(result)
         else:
             stack.append(token)
@@ -148,6 +148,8 @@ def and_op_skip(postings1, postings2):
 
 def and_op(postings1, postings2):
     result = ""
+    postings1.rewind()
+    postings2.rewind()
     element1 = postings1.next()
     element2 = postings2.next()
 
@@ -163,13 +165,38 @@ def and_op(postings1, postings2):
 
     return posting_list(result)
 
-def not_op(postings):
-    #TODO
-    return None
+def not_op(postings1, corpus):
+    # we assume that postings1 is a subset of corpus
+    result = ""
+    postings1.rewind()
+    postings2 = posting_list(corpus)
+
+    element1 = postings1.next()
+    element2 = postings2.next()
+
+    if element1 is None:
+        return postings2
+
+    while element1 is not None or element2 is not None:
+
+        if element2 is None or (element1 is not None and element1 < element2):
+            print("Error this case shouldn't happen")
+            element1 = postings1.next()
+
+        elif element1 is None or (element2 is not None and element1 > element2):
+            result += new_document(0, element2)
+            element2 = postings2.next()
+
+        else:
+            element1 = postings1.next()
+            element2 = postings2.next()
+
+    return posting_list(result)
 
 def or_op(postings1, postings2):
     result = ""
-
+    postings1.rewind()
+    postings2.rewind()
     element1 = postings1.next()
     element2 = postings2.next()
 
@@ -199,7 +226,6 @@ def or_op(postings1, postings2):
 class posting_list(object):
     pointer = 0
     list = []
-
     def __init__(self, list):
         self.list = list
         return
@@ -249,8 +275,12 @@ def search(dictionnary_file_name, postings_file_name, queries_file_name, file_of
     dictionnary = prepare_dictionnary(dictionnary_file_name)
     queries = prepare_queries(queries_file_name, postings_file_name, dictionnary)
     output = open(file_of_output_name, "w")
+
     for query in queries:
-        output.write(str(evaluate(query).to_string()))
+        print(query)
+        print(str(evaluate(query).to_string()))
+        print("\n")
+        output.write(str(evaluate(query, dictionnary[DOC_LIST   ]).to_string())+"\n")
     output.close()
 
 
