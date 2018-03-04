@@ -8,8 +8,8 @@ import tempfile
 import nltk
 from nltk.stem.porter import *
 
-DOC_LIST = "CORPUS"
-FLAG_SIZE = 1 # Flag indicates wheter or not a node containing a DOCID has a skip pointer
+DOC_LIST = "CORPUS" # Special word, to store the entire list of docIDs
+FLAG_SIZE = 1 # Flag indicates wheter or not a node containing a docID has a skip pointer
 ELEM_SIZE = 8 # Elem is either a DOCID or a pointer, that is a position in a posting list
 NODE_SIZE = FLAG_SIZE+ELEM_SIZE
 
@@ -56,7 +56,7 @@ def replace_line(file, line_number, new_line):
             elif i > line_number:
                 fp.write(line)
 
-        fp.seek(0)
+        fp.seek(0) # Auxiliary method for this part
         outfile.seek(offset) 
         for pl in fp:
             outfile.write(pl)
