@@ -107,7 +107,7 @@ for docID in documents: # Scan all the documents
 						dictionary[reduced_word] += 1
 
 
-#============================ Add Skip pointers (Part 2) ============================#
+#=========================== Add Skip pointers (Part 2) ============================#
 fp = tempfile.TemporaryFile()
 
 #print "Vocabulary size: " + str(vocab_size) + '\n' # Debug
@@ -134,7 +134,21 @@ with open(output_file_postings, 'w') as outfile_post:
 fp.close()
 
 
-#============================ Write index to file (Part3) ============================#
+#============================ Store the docIDs (Part 3) ============================#
+with open(output_file_postings, 'a') as outfile_post:
+	word_number[DOC_LIST] = vocab_size
+
+	new_line = ""
+	for docID in documents:
+		new_line += new_document(0,docID)
+	new_line += '\n'
+
+	outfile_post.write(new_line)
+	dictionary[DOC_LIST] = len(documents)
+	vocab_size += 1
+
+
+#========================== Write index to file (Part 4) ==========================#
 with open(output_file_postings, 'r') as outfile_post, open(output_file_dictionary, 'w') as outfile_dict: # Problem with no such file
 	offset = 0
 

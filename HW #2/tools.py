@@ -6,6 +6,8 @@ import getopt
 import nltk
 from nltk.stem.porter import *
 
+DOC_LIST = "CORPUS"
+
 def stem_and_casefold(word_to_process):
     #TODO may want to initialize stemer outside function
     stemmer = PorterStemmer()
