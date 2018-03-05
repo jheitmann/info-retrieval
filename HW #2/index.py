@@ -38,7 +38,9 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
-documents = sorted(map(int, listdir(input_directory)[:200])) # 50 for testing purposes
+
+# Sorted list of docIDs
+documents = sorted(map(int, listdir(input_directory))) # [:200] for testing purposes
 
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
@@ -48,7 +50,11 @@ mapping is the following: (word: (doc_frequency, offset)).
 """
 dictionary = {} 
 """
-(word: number) is a bijective mapping
+(word: number) is a bijective mapping, if word is the ith term encountered during the
+indexing phase, then number = i. Once the index is complete, number ranges from 0 to 
+vocabulary-size-1. This bidirectional dictionary is useful to us, because it can be
+used to determine the line in the posting-list-file that corresponds to a given word, 
+and vice versa.
 """
 word_number = BidirectionalDict() 
 vocab_size = 0 # Number of words encountered, grows with the dictionary
@@ -70,29 +76,41 @@ for docID in documents: # Scan all the documents
 			words = nltk.word_tokenize(line) # Tokenized words
 
 			for word in words:
-				reduced_word = stem_and_casefold(word) 
+				reduced_word = stem_and_casefold(word) # Applies stemming and case-folding
 				dictionary.setdefault(reduced_word,0)
 
 				if dictionary[reduced_word] == 0: # First occurence of reduced_word
-					word_number[reduced_word] = vocab_size # Update word_number
-					new_line = new_node(0,docID) + '\n' # flag | docID (5 bytes) 
-					
-					with open(output_file_postings, 'a') as outfile_post: 
-						outfile_post.write(new_line) # Append this new line
+					word_number[reduced_word] = vocab_size 
+					new_line = new_node(0,docID) + '\n' 
 
-					dictionary[reduced_word] += 1
-					vocab_size += 1 
+					# Append this newly created posting list to posting-list-file
+					with open(output_file_postings, 'a') as outfile_post: 
+						outfile_post.write(new_line) 
+
+					dictionary[reduced_word] += 1 # doc_frequency updated 
+					vocab_size += 1 # A new word
 
 				else: # reduced_word already in index
-					line_number = word_number[reduced_word] # Using linecache, lines start at 1 (not at 0)
-					linecache.clearcache() # Explain this one
-					posting_list = linecache.getline(output_file_postings,line_number+1)[:-1] # '\n' ignored
-					last_docID = unpack_string(posting_list[-ELEM_SIZE:])
+					line_number = word_number[reduced_word] 
+					"""
+					Using linecache, lines start at 1 (not at 0)
+					We need to clear the cache before loading a line, so that it includes
+					the most recent changes made to it
+					"""
+					linecache.clearcache() 
+					posting_list = linecache.getline(output_file_postings,line_number+1)[:-1] # [:-1]: '\n' ignored
+					last_docID = unpack_string(posting_list[-ELEM_SIZE:]) # docID of the last node in posting_list
 
-					if  docID != last_docID: # Explain args
+					"""
+					If docID and last_docID are identical, nothing needs to be done.
+					If not, docID will be appended to the posting list of the current 
+					word, and this posting list is properly updated in the posting-list
+					-file
+					"""
+					if  docID != last_docID: 
 						new_line = posting_list + new_node(0,docID) + '\n' 
-						replace_line(output_file_postings, line_number, new_line) # Need to overwrite the whole file, explain -1
-						dictionary[reduced_word] += 1
+						replace_line(output_file_postings, line_number, new_line)  
+						dictionary[reduced_word] += 1 # doc_frequency updated
 
 
 #============================ Add Skip pointers (Part 2) =============================#
@@ -100,7 +118,7 @@ for docID in documents: # Scan all the documents
 At this point we have a complete posting-list-file, without any skip pointers. We read 
 every line of the posting-list-file, check if skip pointers can be inserted, and if so, 
 write a modified line (that has all the skip pointers) to a temporary file. Once we 
-reach the end of posting-list-file, we overwrite it using the lines from the temporary
+reached the end of posting-list-file, we overwrite it using the lines from the temporary
 file. 
 """
 fp = tempfile.TemporaryFile()
@@ -108,19 +126,27 @@ fp = tempfile.TemporaryFile()
 with open(output_file_postings, 'r+') as outfile_post:
 
 	for next_posting_list in outfile_post:
-		skip_val = skip_value(len(next_posting_list[:-1])) # '\n' ignored
-		nbr_skip_ptr = skip_val-1  # Explain this value
-		skip_ptr_length = skip_val+1 # No skip pointers overlap
+		skip_val = skip_value(len(next_posting_list[:-1])) # [:-1]: '\n' ignored
+		"""
+		Heuristics show that these two values work just fine for any possible posting-
+		list length (especially small and perfect square lengths)
+		"""
+		nbr_skip_ptr = skip_val-1 # Number of skip pointers to be inserted
+		skip_ptr_length = skip_val+1 # Length of a skip pointer (#nodes skipped + 1)
 
 		new_line = next_posting_list
 		for i in range(nbr_skip_ptr):
+			# Comments in tools.py provide a detailed description of the following methods
 			next_addr = node_addr(i,skip_ptr_length)
 			node_string = unpack_string(new_line[next_addr:(next_addr+NODE_SIZE)])
 			ptr = ptr_value(next_addr,skip_ptr_length) 
-			new_line = new_line[:next_addr] + new_node(1,node_string) + new_pointer(ptr) + new_line[(next_addr+NODE_SIZE):] # Explain
+			
+			# Node (delimited by []) with flag set to 1: NODES |[FLAG = 1 (1 char) | docID (8 chars)]| ptr (8 chars)| NODES
+			new_line = new_line[:next_addr] + new_node(1,node_string) + new_pointer(ptr) + new_line[(next_addr+NODE_SIZE):]
 		fp.write(new_line)
 	
-	fp.seek(0) # Auxiliary method: copy content
+	# Overwrite posting-list-file with the new posting-lists, that include skip pointers
+	fp.seek(0) 
 	outfile_post.seek(0)
 	for next_posting_list in fp:
 		outfile_post.write(next_posting_list)
