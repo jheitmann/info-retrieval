@@ -8,6 +8,7 @@ try:
    import cPickle as pickle
 except:
    import pickle
+import time
 
 """ 
     Shunting_yard algorithm that parses boolean expressions in in-fix mode to post-fix (reverse polish notation). 
@@ -85,10 +86,8 @@ def prepare_queries(queries_file_name, postings_file_name, dictionary):
     for line in raw_queries.read().splitlines():
         prepared_query = []
         split = line.split(' ')
-
         # each word in the query is traversed, a word can either be a term (e.g 'bill') or an operator (e.g 'AND')
         for word in split:
-
             # if the word is an operator, we leave it as it is.
             if is_operator(word):
                 operator = word
@@ -98,7 +97,6 @@ def prepare_queries(queries_file_name, postings_file_name, dictionary):
             # and replace it by the corresponding posting list
             else:
                 term = word
-
                 # we need to separate terms and parenthesis (=add space).
                 # for example 'windows and (xp or vista)' should be replaced by 'windows and ( xp or vista )'
                 # this is needed to ease the work of the shunting-yard algorithm
@@ -119,10 +117,10 @@ def prepare_queries(queries_file_name, postings_file_name, dictionary):
                     offset = dictionary[term][1]
 
                     # this posting list has not already been read from disk thus we cache it for efficiency
-                    if offset is not None and not offset in postings_cache:  # TODO offset not in instead of not offset in
+                    if offset is not None and not offset in postings_cache:
                         postings.seek(offset)
                         line = postings.readline()
-                        line = line[:-1]  # TODO DO MANUALLY
+                        line = line[:-1]
                         postings_cache[offset] = posting_list(line)
 
                     posting = postings_cache[offset]
@@ -173,7 +171,7 @@ def evaluate(query, corpus):
     AND operation between 2 posting lists encapsulated in the custom class "posting_list"
     the algorithm follows the idea of your typical linked-list merge algorithm
 """""
-def and_op_skip(postings1, postings2):
+def and_op(postings1, postings2):
     result = ""
     postings1.rewind()
     postings2.rewind()
@@ -213,26 +211,6 @@ def and_op_skip(postings1, postings2):
                 element2 = postings2.next()
 
         # in this case both elements are the same, hence this element has to be added to the result
-        else:
-            result += new_node(0, element1)
-            element1 = postings1.next()
-            element2 = postings2.next()
-
-    return posting_list(result)
-
-#TODO delete this method and replace it by the one that uses skips pointers
-def and_op(postings1, postings2):
-    result = ""
-    postings1.rewind()
-    postings2.rewind()
-    element1 = postings1.next()
-    element2 = postings2.next()
-
-    while element1 is not None and element2 is not None:
-        if element1 is not None and element1 < element2:
-            element1 = postings1.next()
-        elif element2 is not None and element1 > element2:
-            element2 = postings2.next()
         else:
             result += new_node(0, element1)
             element1 = postings1.next()
@@ -360,9 +338,9 @@ class posting_list(object):
     # returns a skip_pointer (= absolute offset in the posting file) if there is one corresponding to the current
     # element or none otherwise
     def skip_pointer(self):
-        if unpack_string(self.list[self.pointer]) == 0:
+        if self.pointer >= len(self.list) or unpack_string(self.list[self.pointer]) == 0:
             return None
-        return unpack_string(self.list[self.pointer + 5: self.pointer + 5 + 4])
+        return unpack_string(self.list[self.pointer + 9: self.pointer + 9 + 8])
 
     # iterates through the posting_list to output a string version of it
     def to_string(self):
@@ -438,4 +416,7 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     usage()
     sys.exit(2)
 
+start = time.time()
 search(dictionary_file, postings_file, file_of_queries, file_of_output)
+end = time.time()
+print("Query time : "+str(end - start))
