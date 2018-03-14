@@ -33,19 +33,19 @@ def new_node(docID):
 
 # Returns the docID of a node
 def get_docID(node):
-    return node[:ELEM_SIZE]
+    return unpack_string(node[:ELEM_SIZE])
 
 # Returns the term frequency of a node
 def get_tf(node):
-    return node[ELEM_SIZE:]
+    return unpack_string(node[ELEM_SIZE:])
 
 """
 Given a node with a term frequency tf, returns a new node with identical 
 docID and term frequency tf+1
 """
 def updated_tf(node):
-    incr_tf = unpack_string(get_tf(node))+1
-    return get_docID(node) + pack_bytes(incr_tf,ELEM_SIZE)
+    incr_tf = get_tf(node)+1
+    return pack_bytes(get_docID(node),ELEM_SIZE) + pack_bytes(incr_tf,ELEM_SIZE)
 
 """
 Explain this method, change replace_line to append node?
@@ -53,11 +53,15 @@ Explain this method, change replace_line to append node?
 def update_last_node(file, line_number):
     with open(file, 'r+') as outfile:
         for i in range(0, line_number+1): # Explain +1
-            next_posting_list = outfile.readline()[-1] # [:-1]: '\n' ignored
+            next_posting_list = outfile.readline()
 
-        last_node = next_posting_list[-NODE_SIZE:]
+        last_node = Postings(next_posting_list).value_at(-1)
         outfile.seek(-(NODE_SIZE+1),1) # +1: '\n' at the end of a line
         outfile.write(updated_tf(last_node))
+
+# Explain
+def td_weight(term_frequency, doc_frequency, nbr_docs):
+    return (1+math.log10(term_frequency))*math.log10(nbr_docs/doc_frequency)
 
 """
 In order to replace a specific line in a file, the subsequent lines must be 
@@ -108,16 +112,19 @@ class Postings(object):
         self.jump(0)
 
     # Explain
-    def value_at(self, position): 
-        if(position < nbr_nodes):
-            node = self.postings[position*NODE_SIZE:(position+1)*NODE_SIZE]
+    def value_at(self, position):
+        if position == -1:
+            node = self.postings[-NODE_SIZE:]
             return node
+        elif -nbr_nodes <= position < nbr_nodes:
+            node = self.postings[position*NODE_SIZE:(position+1)*NODE_SIZE]
+            return node 
         else:
             return None
 
     # next jumps to the next element (or None if no element) and returns it.
     def next(self):
-        if not self.pointer < (nbr_nodes*NODE_SIZE):
+        if not self.pointer < (self.nbr_nodes*NODE_SIZE):
             return None
 
         next_node = self.postings[self.pointer:self.pointer+NODE_SIZE]
@@ -126,7 +133,7 @@ class Postings(object):
 
     # iterates through the posting_list to output a string version of it
     def to_string(self):
-        return postings
+        return self.postings
 
 """ 
 Taken from: stackoverflow.com/questions/1063319/reversible-dictionary-for-python

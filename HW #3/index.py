@@ -5,6 +5,7 @@ import sys
 import getopt
 import linecache
 import tempfile
+import math
 try:
    import cPickle as pickle
 except:
@@ -40,12 +41,12 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 
 
 # Sorted list of docIDs
-documents = sorted(map(int, listdir(input_directory))) # [:200] for testing purposes
+documents = sorted(map(int, listdir(input_directory)[:20])) # [:200] for testing purposes
 """ 
 Given a document with docID N, length[N] stores its length, as described in the lecture
 notes, in order to do length normalization.
 """
-length = {}
+length = {docID: 0 for docID in documents}
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
 (word: doc_frequency). Part 3 then adds to the value of a (key,value) tupple the 
@@ -102,8 +103,9 @@ for docID in documents: # Scan all the documents
 					the most recent changes made to it
 					"""
 					linecache.clearcache() 
-					posting_list = linecache.getline(output_file_postings,line_number+1)[:-1] # [:-1]: '\n' ignored
-					last_node = posting_list[-NODE_SIZE:] # docID of the last node in posting_list
+					line = linecache.getline(output_file_postings,line_number+1)
+					posting_list = Postings(line)
+					last_node = posting_list.value_at(-1) # docID of the last node in posting_list
 					last_docID = get_docID(last_node)
 
 					"""
@@ -115,7 +117,7 @@ for docID in documents: # Scan all the documents
 					if  docID == last_docID: # No need to replace line, only overwrite
 						update_last_node(output_file_postings, line_number)
 					else: 
-						new_line = posting_list + new_node(docID) + '\n' 
+						new_line = posting_list.to_string() + new_node(docID) + '\n' 
 						replace_line(output_file_postings, line_number, new_line)  
 						dictionary[reduced_word] += 1 # doc_frequency updated
 
@@ -134,14 +136,15 @@ with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictiona
 	offset = 0
 	for i, next_line in enumerate(outfile_post):
 		reduced_word = word_number[i]
+		doc_frequency = dictionary[reduced_word]
 		next_posting_list = Postings(next_line)
-		for j in range(dictionary[reduced_word]):
+		for j in range(doc_frequency):
 			next_node = next_posting_list.next()
-			length[get_docID(next_node)] += get_tf(next_node) # tf-idf square 
+			weight = td_weight(get_tf(next_node), doc_frequency, len(documents))
+			length[get_docID(next_node)] += weight*weight # tf-idf square 
 
 		dictionary[reduced_word] = (dictionary[reduced_word], offset) 
 		offset += len(next_line)
 
 	pickle.dump(dictionary,outfile_dict)
-	pickle.dump(length)
-	outfile_dict.flush()
+	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) # Explain
