@@ -8,10 +8,9 @@ import tempfile
 import nltk
 from nltk.stem.porter import *
 
-DOC_LIST = "CORPUS" # Special word, to store the entire list of docIDs
-FLAG_SIZE = 1 # Flag indicates whether or not a node containing a docID has a skip pointer
+DOC_LIST = "CORPUS" # Special word, to store the entire list of docIDs -> not needed anymore
 ELEM_SIZE = 8 # Elem is either a docID or a pointer, that is a position in a posting list
-NODE_SIZE = FLAG_SIZE+ELEM_SIZE # A node is a flag and a docID
+NODE_SIZE = 2*ELEM_SIZE # A node is a flag and a docID
 stemmer = PorterStemmer() # stem_and_casefold(word_to_process) uses this stemmer
 
 # Applies the Porter Stemming algorithm, then case-folding
@@ -29,24 +28,36 @@ def unpack_string(s):
     return int(s,16) 
 
 # Returns a new node
-def new_node(flag, docID):
-    return pack_bytes(flag,FLAG_SIZE) + pack_bytes(docID,ELEM_SIZE)
+def new_node(docID):
+    return pack_bytes(docID,ELEM_SIZE) + pack_bytes(1,ELEM_SIZE)
 
-# Returns a new pointer
-def new_pointer(ptr):
-    return  pack_bytes(ptr,ELEM_SIZE)
+# Returns the docID of a node
+def get_docID(node):
+    return node[:ELEM_SIZE]
 
-# Returns the address (position in a string) of the (n+1)th node that has a skip pointer
-def node_addr(n, skip_ptr_length):
-    return n*(skip_ptr_length*NODE_SIZE + ELEM_SIZE) 
+# Returns the term frequency of a node
+def get_tf(node):
+    return node[ELEM_SIZE:]
 
-# Returns the pointer value of a given node
-def ptr_value(node_addr, skip_ptr_length):
-    return node_addr + ELEM_SIZE + skip_ptr_length*NODE_SIZE 
+"""
+Given a node with a term frequency tf, returns a new node with identical 
+docID and term frequency tf+1
+"""
+def updated_tf(node):
+    incr_tf = unpack_string(get_tf(node))+1
+    return get_docID(node) + pack_bytes(incr_tf,ELEM_SIZE)
 
-# This value will be used to insert a skip pointer
-def skip_value(length):
-    return int(math.floor(math.sqrt(length/NODE_SIZE)))
+"""
+Explain this method, change replace_line to append node?
+"""
+def update_last_node(file, line_number):
+    with open(file, 'r+') as outfile:
+        for i in range(0, line_number+1): # Explain +1
+            next_posting_list = outfile.readline()[-1] # [:-1]: '\n' ignored
+
+        last_node = next_posting_list[-NODE_SIZE:]
+        outfile.seek(-(NODE_SIZE+1),1) # +1: '\n' at the end of a line
+        outfile.write(updated_tf(last_node))
 
 """
 In order to replace a specific line in a file, the subsequent lines must be 
@@ -71,6 +82,51 @@ def replace_line(file, line_number, new_line):
         for pl in fp:
             outfile.write(pl)
         fp.close()
+
+"""
+    This class encapsulates a raw posting-list and offers a convenient interface 
+    to interact with it. A node in the posting-list has the following internal
+    structure: [ docID (8 chars) | term_frequency (8 chars) ]
+"""
+class Postings(object):
+
+    def __init__(self, posting_list):
+        if(posting_list[-1:] == "\n"):
+            posting_list = posting_list[:-1] # [:-1]: '\n' ignored
+        self.postings = posting_list
+        self.nbr_nodes = len(posting_list)/NODE_SIZE # Explain
+        self.pointer = 0
+        return
+
+    # jumps at the specified position in the list (relative position)
+    def jump(self, position): 
+        if(position < nbr_nodes):
+            pointer = position*NODE_SIZE
+
+    # jumps to the first element in the list
+    def rewind(self):
+        self.jump(0)
+
+    # Explain
+    def value_at(self, position): 
+        if(position < nbr_nodes):
+            node = self.postings[position*NODE_SIZE:(position+1)*NODE_SIZE]
+            return node
+        else:
+            return None
+
+    # next jumps to the next element (or None if no element) and returns it.
+    def next(self):
+        if not self.pointer < (nbr_nodes*NODE_SIZE):
+            return None
+
+        next_node = self.postings[self.pointer:self.pointer+NODE_SIZE]
+        self.pointer += NODE_SIZE
+        return next_node
+
+    # iterates through the posting_list to output a string version of it
+    def to_string(self):
+        return postings
 
 """ 
 Taken from: stackoverflow.com/questions/1063319/reversible-dictionary-for-python

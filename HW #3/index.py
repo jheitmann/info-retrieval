@@ -41,7 +41,11 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 
 # Sorted list of docIDs
 documents = sorted(map(int, listdir(input_directory))) # [:200] for testing purposes
-
+""" 
+Given a document with docID N, length[N] stores its length, as described in the lecture
+notes, in order to do length normalization.
+"""
+length = {}
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
 (word: doc_frequency). Part 3 then adds to the value of a (key,value) tupple the 
@@ -81,7 +85,7 @@ for docID in documents: # Scan all the documents
 
 				if dictionary[reduced_word] == 0: # First occurence of reduced_word
 					word_number[reduced_word] = vocab_size 
-					new_line = new_node(0,docID) + '\n' 
+					new_line = new_node(docID) + '\n' 
 
 					# Append this newly created posting list to posting-list-file
 					with open(output_file_postings, 'a') as outfile_post: 
@@ -99,7 +103,8 @@ for docID in documents: # Scan all the documents
 					"""
 					linecache.clearcache() 
 					posting_list = linecache.getline(output_file_postings,line_number+1)[:-1] # [:-1]: '\n' ignored
-					last_docID = unpack_string(posting_list[-ELEM_SIZE:]) # docID of the last node in posting_list
+					last_node = posting_list[-NODE_SIZE:] # docID of the last node in posting_list
+					last_docID = get_docID(last_node)
 
 					"""
 					If docID and last_docID are identical, nothing needs to be done.
@@ -107,80 +112,36 @@ for docID in documents: # Scan all the documents
 					word, and this posting list is properly updated in the posting-list
 					-file
 					"""
-					if  docID != last_docID: 
-						new_line = posting_list + new_node(0,docID) + '\n' 
+					if  docID == last_docID: # No need to replace line, only overwrite
+						update_last_node(output_file_postings, line_number)
+					else: 
+						new_line = posting_list + new_node(docID) + '\n' 
 						replace_line(output_file_postings, line_number, new_line)  
 						dictionary[reduced_word] += 1 # doc_frequency updated
 
 
-#============================ Add Skip pointers (Part 2) =============================#
-"""
-At this point we have a complete posting-list-file, without any skip pointers. We read 
-every line of the posting-list-file, check if skip pointers can be inserted, and if so, 
-write a modified line (that has all the skip pointers) to a temporary file. Once we 
-reached the end of posting-list-file, we overwrite it using the lines from the temporary
-file. 
-"""
-fp = tempfile.TemporaryFile()
 
-with open(output_file_postings, 'r+') as outfile_post:
-
-	for next_posting_list in outfile_post:
-		skip_val = skip_value(len(next_posting_list[:-1])) # [:-1]: '\n' ignored
-		"""
-		Heuristics show that these two values work just fine for any possible posting-
-		list length (especially small and perfect square lengths)
-		"""
-		nbr_skip_ptr = skip_val-1 # Number of skip pointers to be inserted
-		skip_ptr_length = skip_val+1 # Length of a skip pointer (#nodes skipped + 1)
-
-		new_line = next_posting_list
-		for i in range(nbr_skip_ptr):
-			# Comments in tools.py provide a detailed description of the following methods
-			next_addr = node_addr(i,skip_ptr_length)
-			node_string = unpack_string(new_line[next_addr:(next_addr+NODE_SIZE)])
-			ptr = ptr_value(next_addr,skip_ptr_length) 
-			
-			# Node (delimited by []) with flag set to 1: NODES |[FLAG = 1 (1 char) | docID (8 chars)]| ptr (8 chars)| NODES
-			new_line = new_line[:next_addr] + new_node(1,node_string) + new_pointer(ptr) + new_line[(next_addr+NODE_SIZE):]
-		fp.write(new_line)
-	
-	# Overwrite posting-list-file with the new posting-lists, that include skip pointers
-	fp.seek(0) 
-	outfile_post.seek(0)
-	for next_posting_list in fp:
-		outfile_post.write(next_posting_list)
-	fp.close()
-	
-
-#============================ Write index to file (Part 3) ===========================#
+#============================ Write index to file (Part 2) ===========================#
 """
 What remains to be done is to add a special word to the dictionary, whose corresponding 
 posting-list contains all the docIDs (which we append to the posting-list-file), and 
 finally to serialize the dictionary in a txt file.
 """
 with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictionary, 'w') as outfile_dict:
-	# ---- Add a special word to the dictionary to get the list of all documents ---- #
-	word_number[DOC_LIST] = vocab_size
-
-	new_line = ""
-	for docID in documents:
-		new_line += new_node(0,docID)
-	new_line += '\n'
-
-	outfile_post.seek(0,2) # Append the list of all documents
-	outfile_post.write(new_line)
-	dictionary[DOC_LIST] = len(documents)
-	vocab_size += 1
-
 	# ---------------- Serialize the dictionary and save it in a file --------------- #
 	outfile_post.seek(0)
 	
 	offset = 0
-	for i, next_posting_list in enumerate(outfile_post):
+	for i, next_line in enumerate(outfile_post):
 		reduced_word = word_number[i]
+		next_posting_list = Postings(next_line)
+		for j in range(dictionary[reduced_word]):
+			next_node = next_posting_list.next()
+			length[get_docID(next_node)] += get_tf(next_node) # tf-idf square 
+
 		dictionary[reduced_word] = (dictionary[reduced_word], offset) 
-		offset += len(next_posting_list)
+		offset += len(next_line)
 
 	pickle.dump(dictionary,outfile_dict)
+	pickle.dump(length)
 	outfile_dict.flush()

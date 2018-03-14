@@ -300,59 +300,7 @@ def or_op(postings1, postings2):
             element2 = postings2.next()
 
     return posting_list(result)
-
-"""""
-    This class encapsulates a raw posting-list and offers a convenient interface to interact with the posting-list
-    the raw posting list is of the following format : #TODO EXPLAIN FORMAT
-"""""
-class posting_list(object):
-    pointer = 0
-    list = []
-    def __init__(self, list):
-        self.list = list
-        return
-
-    # jumps at the specified position in the list (absolute position)
-    def jump(self, position):
-        self.pointer = position
-
-    # jumps at the first element in the list
-    def rewind(self):
-        self.jump(0)
-
-    # returns the value of the specified element in the list, the position must point to the first byte of the element
-    def value_at(self, position):
-        return unpack_string(self.list[position+1:position+9])
-
-    # next jumps to the next element (or None if no element) and returns it. Skip pointers are taken into account.
-    def next(self):
-        if not self.pointer < len(self.list):
-            return None
-        element = unpack_string(self.list[self.pointer+1:self.pointer+9])
-        if self.skip_pointer() is not None:
-            self.pointer += 17
-        else:
-            self.pointer += 9
-        return element
-
-    # returns a skip_pointer (= absolute offset in the posting file) if there is one corresponding to the current
-    # element or none otherwise
-    def skip_pointer(self):
-        if self.pointer >= len(self.list) or unpack_string(self.list[self.pointer]) == 0:
-            return None
-        return unpack_string(self.list[self.pointer + 9: self.pointer + 9 + 8])
-
-    # iterates through the posting_list to output a string version of it
-    def to_string(self):
-        self.rewind()
-        result = ""
-        element = self.next()
-        while element is not None:
-            result += str(element)
-            element = self.next()
-            if element is not None:
-                result += " "
-        return result
+    
 
 """""
     This function performs the queries given in the queries_file_name file using the given
