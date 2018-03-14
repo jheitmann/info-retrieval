@@ -47,6 +47,10 @@ def updated_tf(node):
     incr_tf = get_tf(node)+1
     return pack_bytes(get_docID(node),ELEM_SIZE) + pack_bytes(incr_tf,ELEM_SIZE)
 
+# Explain
+def td_weight(term_frequency, doc_frequency, nbr_docs):
+    return (1+math.log10(term_frequency))*math.log10(nbr_docs/doc_frequency)
+
 """
 Explain this method, change replace_line to append node?
 """
@@ -59,17 +63,13 @@ def update_last_node(file, line_number):
         outfile.seek(-(NODE_SIZE+1),1) # +1: '\n' at the end of a line
         outfile.write(updated_tf(last_node))
 
-# Explain
-def td_weight(term_frequency, doc_frequency, nbr_docs):
-    return (1+math.log10(term_frequency))*math.log10(nbr_docs/doc_frequency)
-
 """
 In order to replace a specific line in a file, the subsequent lines must be 
 overwritten. Hence this method stores the new line (that replaces the old one)
 and the subsequent lines in a temporary file, then overwrites the initial file, 
 starting at the line to be replaced.
 """
-def replace_line(file, line_number, new_line):
+def update_posting_list(file, line_number, new_line):
     with open(file, 'r+') as outfile:
         fp = tempfile.TemporaryFile() 
         fp.write(new_line)
@@ -102,7 +102,7 @@ class Postings(object):
         self.pointer = 0
         return
 
-    # jumps at the specified position in the list (relative position)
+    # jumps to the specified position in the list (relative position)
     def jump(self, position): 
         if(position < nbr_nodes):
             pointer = position*NODE_SIZE

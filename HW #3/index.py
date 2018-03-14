@@ -118,7 +118,7 @@ for docID in documents: # Scan all the documents
 						update_last_node(output_file_postings, line_number)
 					else: 
 						new_line = posting_list.to_string() + new_node(docID) + '\n' 
-						replace_line(output_file_postings, line_number, new_line)  
+						update_posting_list(output_file_postings, line_number, new_line)  
 						dictionary[reduced_word] += 1 # doc_frequency updated
 
 
