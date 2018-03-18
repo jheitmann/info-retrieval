@@ -10,6 +10,7 @@ except:
    import pickle
 import time
 from math import log10
+
 def prepare_queries(queries_file_name):
     # output list of queries
     queries = []
@@ -29,7 +30,7 @@ def cosine_score(query, postings, dictionnary):
 
     scores = dict()
     length = load_length() #TODO IMPLEMENT
-    N = len(length)
+    N = len(length) # Already defined
 
     w_t_q = w_t_q(query, dictionnary, N)
     for term in query:
@@ -38,7 +39,7 @@ def cosine_score(query, postings, dictionnary):
             document = pair[0]
             tf_t_d = pair[1]
             w_t_d = 1 + log10(tf_t_d)
-            scores[document] = scores.get(document, 0) + w_t_d * w_t_q(term)
+            scores[document] = scores.get(document, 0) + w_t_d * w_t_q(term) # use td_weight
 
         for document in scores:
             scores[document] = scores[document] / length[document]

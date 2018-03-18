@@ -42,6 +42,8 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 
 # Sorted list of docIDs
 documents = sorted(map(int, listdir(input_directory)[:20])) # [:200] for testing purposes
+# Total number of documents
+NRB_DOCS = len(documents)
 """ 
 Given a document with docID N, length[N] stores its length, as described in the lecture
 notes, in order to do length normalization.
@@ -130,17 +132,15 @@ posting-list contains all the docIDs (which we append to the posting-list-file),
 finally to serialize the dictionary in a txt file.
 """
 with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictionary, 'w') as outfile_dict:
-	# ---------------- Serialize the dictionary and save it in a file --------------- #
-	outfile_post.seek(0)
-	
 	offset = 0
+
 	for i, next_line in enumerate(outfile_post):
 		reduced_word = word_number[i]
 		doc_frequency = dictionary[reduced_word]
 		next_posting_list = Postings(next_line)
-		for j in range(doc_frequency):
-			next_node = next_posting_list.next()
-			weight = td_weight(get_tf(next_node), doc_frequency, len(documents))
+
+		for next_node in next_posting_list:
+			weight = td_weight(get_tf(next_node), doc_frequency, NRB_DOCS)
 			length[get_docID(next_node)] += weight*weight # tf-idf square 
 
 		dictionary[reduced_word] = (dictionary[reduced_word], offset) 

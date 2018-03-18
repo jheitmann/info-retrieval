@@ -8,9 +8,8 @@ import tempfile
 import nltk
 from nltk.stem.porter import *
 
-DOC_LIST = "CORPUS"  # Special word, to store the entire list of docIDs -> not needed anymore
-ELEM_SIZE = 8  # Elem is either a docID or a pointer, that is a position in a posting list
-NODE_SIZE = 2 * ELEM_SIZE  # A node is a flag and a docID
+ELEM_SIZE = 8  # Elem is either a docID or a term frequency
+NODE_SIZE = 2 * ELEM_SIZE  # A node is a docID and a term frequency
 stemmer = PorterStemmer()  # stem_and_casefold(word_to_process) uses this stemmer
 
 
@@ -31,7 +30,7 @@ def unpack_string(s):
     return int(s, 16)
 
 
-# Returns a new node
+# Returns a new node, with term frequency set to 1
 def new_node(docID):
     return pack_bytes(docID, ELEM_SIZE) + pack_bytes(1, ELEM_SIZE)
 
@@ -50,30 +49,33 @@ def get_tf(node):
 Given a node with a term frequency tf, returns a new node with identical 
 docID and term frequency tf+1
 """
-
-
 def updated_tf(node):
     incr_tf = get_tf(node) + 1
     return pack_bytes(get_docID(node), ELEM_SIZE) + pack_bytes(incr_tf, ELEM_SIZE)
 
 
-# Explain
+# Returns the tf-idf score
 def td_weight(term_frequency, doc_frequency, nbr_docs):
-    return (1 + math.log10(term_frequency)) * math.log10(nbr_docs / doc_frequency)
+    if term_frequency == 0 or doc_frequency == 0:
+        return 0
+    else:
+        return (1 + math.log10(term_frequency)) * math.log10(nbr_docs / doc_frequency)
 
 
 """
-Explain this method, change replace_line to append node?
+The goal is to increment the term_frequency attribute of the last node in a 
+given posting list (at line_number in file). To do so, we compute the offset 
+of this last node in the file, seek() to this position, and overwrite it 
+with an updated node.
 """
-
-
 def update_last_node(file, line_number):
     with open(file, 'r+') as outfile:
-        for i in range(0, line_number + 1):  # Explain +1
+        for i in range(line_number + 1):  # +1: line to modify also read
             next_posting_list = outfile.readline()
 
-        last_node = Postings(next_posting_list).value_at(-1)
-        outfile.seek(-(NODE_SIZE + 1), 1)  # +1: '\n' at the end of a line
+        last_node = Postings(next_posting_list).value_at(-1) # Fetches the last node
+        # seek() to the position of last_node in file, +1: '\n' at the end of a line
+        outfile.seek(-(NODE_SIZE + 1), 1) 
         outfile.write(updated_tf(last_node))
 
 
@@ -83,8 +85,6 @@ overwritten. Hence this method stores the new line (that replaces the old one)
 and the subsequent lines in a temporary file, then overwrites the initial file, 
 starting at the line to be replaced.
 """
-
-
 def update_posting_list(file, line_number, new_line):
     with open(file, 'r+') as outfile:
         fp = tempfile.TemporaryFile()
@@ -158,10 +158,8 @@ def top_k(scores):
 """
     This class encapsulates a raw posting-list and offers a convenient interface 
     to interact with it. A node in the posting-list has the following internal
-    structure: [ docID (8 chars) | term_frequency (8 chars) ]
+    structure: [ docID (ELEM_SIZE chars) | term_frequency (ELEM_SIZE chars) ]
 """
-
-
 class Postings(object):
 
     def __init__(self, posting_list):
@@ -172,12 +170,24 @@ class Postings(object):
         self.pointer = 0
         return
 
-    # jumps to the specified position in the list (relative position)
+    def __iter__(self):
+        return self
+
+    # Makes iterating other postings possible
+    def next(self):
+        if self.pointer < (self.nbr_nodes * NODE_SIZE):
+            next_node = self.postings[self.pointer:self.pointer + NODE_SIZE]
+            self.pointer += NODE_SIZE
+            return next_node
+        else:
+            raise StopIteration
+
+    # Jumps to the specified position in the list (relative position)
     def jump(self, position):
         if (position < nbr_nodes):
             pointer = position * NODE_SIZE
 
-    # jumps to the first element in the list
+    # Jumps to the first element in the list
     def rewind(self):
         self.jump(0)
 
@@ -192,16 +202,8 @@ class Postings(object):
         else:
             return None
 
-    # next jumps to the next element (or None if no element) and returns it.
-    def next(self):
-        if not self.pointer < (self.nbr_nodes * NODE_SIZE):
-            return None
 
-        next_node = self.postings[self.pointer:self.pointer + NODE_SIZE]
-        self.pointer += NODE_SIZE
-        return next_node
-
-    # iterates through the posting_list to output a string version of it
+    # Iterates through the posting_list to output a string version of it
     def to_string(self):
         return self.postings
 
@@ -210,8 +212,6 @@ class Postings(object):
 Taken from: stackoverflow.com/questions/1063319/reversible-dictionary-for-python
 A bidirectional dictionary (need to have bijective mapping)
 """
-
-
 class BidirectionalDict(dict):
     def __setitem__(self, key, val):
         dict.__setitem__(self, key, val)
