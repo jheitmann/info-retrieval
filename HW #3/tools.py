@@ -103,9 +103,13 @@ def update_posting_list(file, line_number, new_line):
             outfile.write(pl)
         fp.close()
 
-
-# from pseudo code given at https://courses.csail.mit.edu/6.006/fall10/handouts/recitation10-8.pdf
-# and https://en.wikipedia.org/wiki/Binary_heap
+"""
+    tool functions to implement a max-heap on a given array A. Elements of A are (docID, score) pairs.
+    the comparison is on score first, i.e (X, 4) > (Y, 3) and then on docID in case of tie but in
+    reversed order i.e (3, 4) > (5, 4).
+    from pseudo code given at https://courses.csail.mit.edu/6.006/fall10/handouts/recitation10-8.pdf
+    and https://en.wikipedia.org/wiki/Binary_heap
+"""
 def build_max_heap(A):
     for i in range(len(A) / 2 - 1, -1, -1):
         max_heapify(A, i)
@@ -117,10 +121,10 @@ def max_heapify(A, i):
     right = 2 * i + 2
     largest = i
     if left < heap_size and (
-            A[left][1] > A[largest][1] or (A[left][1] == A[largest][1]) and int(A[left][0]) < int(A[largest][0])):
+            A[left][1] > A[largest][1] or (A[left][1] == A[largest][1]) and A[left][0] < A[largest][0]):
         largest = left
     if right < heap_size and (
-            A[right][1] > A[largest][1] or (A[right][1] == A[largest][1] and int(A[right][0]) < int(A[largest][0]))):
+            A[right][1] > A[largest][1] or (A[right][1] == A[largest][1] and A[right][0] < A[largest][0])):
         largest = right
 
     if not largest == i:
@@ -146,12 +150,12 @@ def extract_max(A):
 def top_k(scores):
     A = scores.items()
     build_max_heap(A)
-    result = []
+    result = ''
     k = 10
     if len(A) < k:
         k = len(A)
     for i in range(k):
-        result.append(extract_max(A))
+        result += str(extract_max(A)) if result == '' else ' '+str(extract_max(A))
     return result
 
 
