@@ -187,11 +187,16 @@ class Postings(object):
         if (position < nbr_nodes):
             pointer = position * NODE_SIZE
 
-    # Jumps to the first element in the list
+    # Jumps to the first node in the list
     def rewind(self):
         self.jump(0)
 
-    # Explain
+    """
+    Allows us to directly access a certain node, negative position possible 
+    (similar to list, i.e. if l = [...], l[-1]). Again, it is only a relative
+    position (the (position+1)th node in the posting list), and doesn't 
+    correspond to the actual position of this particular node in self.postings
+    """
     def value_at(self, position):
         if position == -1:
             node = self.postings[-NODE_SIZE:]
@@ -202,8 +207,6 @@ class Postings(object):
         else:
             return None
 
-
-    # Iterates through the posting_list to output a string version of it
     def to_string(self):
         return self.postings
 

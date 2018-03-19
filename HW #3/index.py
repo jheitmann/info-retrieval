@@ -41,7 +41,7 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 
 
 # Sorted list of docIDs
-documents = sorted(map(int, listdir(input_directory)[:20])) # [:200] for testing purposes
+documents = sorted(map(int, listdir(input_directory))) # [:200] for testing purposes
 # Total number of documents
 NRB_DOCS = len(documents)
 """ 
@@ -107,18 +107,17 @@ for docID in documents: # Scan all the documents
 					linecache.clearcache() 
 					line = linecache.getline(output_file_postings,line_number+1)
 					posting_list = Postings(line)
-					last_node = posting_list.value_at(-1) # docID of the last node in posting_list
+					last_node = posting_list.value_at(-1) 
 					last_docID = get_docID(last_node)
 
 					"""
-					If docID and last_docID are identical, nothing needs to be done.
-					If not, docID will be appended to the posting list of the current 
-					word, and this posting list is properly updated in the posting-list
-					-file
+					If docID and last_docID are identical, we increment the term_frequency
+					attribute of last_node. If not, we append a new node to the posting
+					list.
 					"""
-					if  docID == last_docID: # No need to replace line, only overwrite
+					if  docID == last_docID: # term_frequency needs to be updated
 						update_last_node(output_file_postings, line_number)
-					else: 
+					else: # New node appended to the posting list
 						new_line = posting_list.to_string() + new_node(docID) + '\n' 
 						update_posting_list(output_file_postings, line_number, new_line)  
 						dictionary[reduced_word] += 1 # doc_frequency updated
@@ -127,9 +126,10 @@ for docID in documents: # Scan all the documents
 
 #============================ Write index to file (Part 2) ===========================#
 """
-What remains to be done is to add a special word to the dictionary, whose corresponding 
-posting-list contains all the docIDs (which we append to the posting-list-file), and 
-finally to serialize the dictionary in a txt file.
+What remains to be done is to compute the length of every document (square root of the 
+sum of tf-idf score squares, computed for all terms in the document), while also 
+updating the dictionary with the offset in the posting-list-file that corresponds to a 
+certain word. Finally, we serialize both dictionary and length.
 """
 with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictionary, 'w') as outfile_dict:
 	offset = 0
@@ -139,12 +139,13 @@ with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictiona
 		doc_frequency = dictionary[reduced_word]
 		next_posting_list = Postings(next_line)
 
-		for next_node in next_posting_list:
+		for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
 			weight = td_weight(get_tf(next_node), doc_frequency, NRB_DOCS)
 			length[get_docID(next_node)] += weight*weight # tf-idf square 
 
-		dictionary[reduced_word] = (dictionary[reduced_word], offset) 
+		dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
 		offset += len(next_line)
 
 	pickle.dump(dictionary,outfile_dict)
-	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) # Explain
+	# Final length is obtained after computing the square root of the previous value
+	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
