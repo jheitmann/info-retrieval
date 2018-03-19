@@ -136,11 +136,10 @@ with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictiona
 
 	for i, next_line in enumerate(outfile_post):
 		reduced_word = word_number[i]
-		doc_frequency = dictionary[reduced_word]
 		next_posting_list = Postings(next_line)
 
 		for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
-			weight = td_weight(get_tf(next_node), doc_frequency, NRB_DOCS)
+			weight = 1 + math.log10(get_tf(next_node))
 			length[get_docID(next_node)] += weight*weight # tf-idf square 
 
 		dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
