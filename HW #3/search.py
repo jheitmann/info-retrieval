@@ -24,9 +24,9 @@ def prepare_queries(queries_file_name):
 
     # each query in the queries_file is traversed
     for line in raw_queries.read().splitlines():
-        split = line.split(' ')
-        queries.append(split)
-
+        words = nltk.word_tokenize(line)
+        queries.append(words)
+        print(words)
     raw_queries.close()
     return queries
 
@@ -51,6 +51,7 @@ def cosine_score(query, postings, dictionary, length):
                 scores[document] = scores.get(document, 0) + w_t_d * w_t_q[term] # use td_weight
     for document in scores:
         scores[document] = scores[document] / length[document]
+
     return top_k(scores)
 
 """
