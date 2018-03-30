@@ -41,7 +41,7 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 
 
 # Sorted list of docIDs
-documents = sorted(map(int, listdir(input_directory))) # [:200] for testing purposes
+documents = sorted(map(int, listdir(input_directory))) 
 # Total number of documents
 NRB_DOCS = len(documents)
 """ 
@@ -50,8 +50,8 @@ notes, in order to do length normalization.
 """
 length = {docID: 0 for docID in documents}
 """
-dictionary is our inverted index, in part 1 & 2 it contains the mapping 
-(word: doc_frequency). Part 3 then adds to the value of a (key,value) tupple the 
+dictionary is our inverted index, in part 1 it contains the mapping 
+(word: doc_frequency). Part 2 then adds to the value of a (key,value) tupple the 
 position of the posting list that corresponds to the key (a word). Hence the final 
 mapping is the following: (word: (doc_frequency, offset)).
 """
@@ -81,7 +81,6 @@ for docID in documents: # Scan all the documents
 
 		for line in next_doc:
 			words = nltk.word_tokenize(line) # Tokenized words
-
 			for word in words:
 				reduced_word = stem_and_casefold(word) # Applies stemming and case-folding
 				dictionary.setdefault(reduced_word,0)

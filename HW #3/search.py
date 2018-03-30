@@ -23,10 +23,9 @@ def prepare_queries(queries_file_name):
     raw_queries = open(queries_file_name, "r")
 
     # each query in the queries_file is traversed
-    for line in raw_queries.read().splitlines():
-        words = nltk.word_tokenize(line)
-        queries.append(words)
-        print(words)
+    for line in raw_queries:
+        terms = nltk.word_tokenize(line)
+        queries.append([stem_and_casefold(term) for term in terms])
     raw_queries.close()
     return queries
 
@@ -35,11 +34,9 @@ def prepare_queries(queries_file_name):
     in class.
 """
 def cosine_score(query, postings, dictionary, length):
-    #TODO IMPLEMENT CACHING METHOD
 
     scores = dict()
     N = len(length) #Already defined
-
     w_t_q = compute_w_t_q(query, dictionary, N)
     for term in query:
         if term in dictionary:
@@ -79,9 +76,7 @@ def compute_w_t_q(query, dictionary, N):
 def fetch_posting_list(term, dictionary, postings):
     offset = dictionary[term][1]
     postings.seek(offset)
-    line = postings.readline()
-    line = line[:-1]
-    posting_list = Postings(line)
+    posting_list = Postings(postings.readline())
     return posting_list
 
 """

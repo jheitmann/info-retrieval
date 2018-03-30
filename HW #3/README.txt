@@ -13,22 +13,18 @@ in your program, and discuss your experiments in general.  A few paragraphs
 are usually sufficient.
 
 Creating the dictionary:
-index.py creates an inverted index and a file of posting lists, from a collection of documents, the path to which is given by the user as input. To do so, the algorithm goes through 3 distinct steps:
-1) Create a first version of both index and posting-list-file, without skip pointers. Every document is read, and for every word, after it was tokenized, stemmed and case-folded, we update the index (and the corresponding posting list) accordingly.
-2) Add skip pointers to large enough posting lists. If a new skip pointer is created, here is how the posting list close to the node that has a skip pointer looks like:
-Node (delimited by []) with flag set to 1 => NODES |[FLAG = 1 (1 char) | docID (8 chars)]| ptr (8 chars)| NODES, where NODES represents other nodes (possibly none at all)
-3) Add the special word "CORPUS" to the index (and append its posting list), that allows us to retrieve the entire list of docIDs from the posting-list-file, then serialize the index, using the cPickle library.
+index.py creates an inverted index, a file of posting lists and a mapping length, from a collection of documents, the path to which is given by the user as input. To do so, the algorithm goes through 2 distinct steps:
+1) Create both the index and posting-list-file. Every document is read, and for every word, after it was tokenized, stemmed and case-folded, we update the index (and the corresponding posting list) accordingly.
+2) Once the index is complete, compute every documents length (using only the term frequency for terms in the document) and store it in the dictionary length. After that, serialize the index and the dictionary length, using the cPickle library
 
 Query processing :
-Our program is able to process boolean queries i.e. in-fix expressions made of search terms and boolean operators (AND, OR, NOT and parenthesis). To do so, the algorithm goes through 4 distinct steps :
+Our program is able to process free term queries. To do so, the algorithm goes through 3 distinct steps :
 1) term reduction 
-  The terms in the query need to be reduced following the same reduction flow as used for the inverted index. In our case each term is stemmed and case-folded.
-2) post-fix translation
-   the in-fix expression is parsed into a post-fix expression to simplify its evaluation. For example 'bill AND gates' is transformed to 'bill gates AND'. This is done using the Shunting-yard algorithm from our Lord Dijkstra.
-3) postings list retrieval
-  the postings list corresponding to each term in the expression are retrieved from the inverted index (dictionnary and postings-list files)
-4) expression evaluation
-  the expression can finally be evaluated using basic algorithms for the AND, OR and NOT operations between postings-list
+  The terms in the query need to be reduced following the same reduction flow as used for the inverted index. In our case each term is stemmed and case-folded after tokenization.
+2) cosine scores computation
+  The cosine score for each document is computed following the algorithm given in class
+3) Top 10 documents for each query are outputed
+  The top 10 documents (highest scores) are found using a max-heap in linear running time.
 
 == Files included with this submission ==
 
@@ -78,8 +74,6 @@ assignment and state their role>
 
 - stackoverflow.com/questions/1063319/reversible-dictionary-for-python: Code for the bidirectional dictionary
 
---> stackoverflow in general, for various issues with python
+- https://courses.csail.mit.edu/6.006/fall10/handouts/recitation10-8.pdf : Pseudo code for max-heap
+    and https://en.wikipedia.org/wiki/Binary_heap : Pseudo code for max-heap
 
-- https://en.wikipedia.org/wiki/Shunting-yard_algorithm: Shunting-yard algorithm
-
-- https://en.wikipedia.org/wiki/Reverse_Polish_notation: Reverse Polish notation
