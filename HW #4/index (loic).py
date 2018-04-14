@@ -39,14 +39,11 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 # -out: the tokens of the file
 PORTER = nltk.stem.porter.PorterStemmer()
 def tokenizeFile(row):
-    sentences = nltk.sent_tokenize(row[2].decode("utf-8").encode("ascii","ignore"))
-    words = []
-    for sent in sentences:
-        words = words + nltk.word_tokenize(sent)
+    sentences = row[2].decode("utf-8").encode("ascii","ignore")
+    words =nltk.word_tokenize(sentences)
     tokens = []
     for w in words:
-        if not( w == "," or w=="." ):
-            tokens +=[PORTER.stem(w)]
+        tokens +=[PORTER.stem(w)]
     return tokens
 
 #
@@ -73,11 +70,11 @@ def spimiInvert( rows , outs):
             if token in dictionary.keys():
                 last = dictionary[token][-1]
                 if last[0] != fileId:
-                    dictionary[token]+= [(fileId,1)]
+                    dictionary[token] += [(fileId,1)]
                     lengthVec +=1
                 else:
-                    x = dictionary[token][-1][1]
-                    dictionary[token][-1] = (dictionary[token][-1][0],x+1)
+                    x =last[1]
+                    dictionary[token][-1] = (fileId,x+1)
                     #newW = (1+math.log(x+1,10))
                     #oldW = (1+math.log(x,10))
                     #lengthVec += newW*newW - oldW*oldW
