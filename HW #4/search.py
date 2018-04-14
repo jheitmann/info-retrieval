@@ -1,4 +1,4 @@
-#!/usr/bin/python
+    #!/usr/bin/python
 import re
 import nltk
 import sys
@@ -10,7 +10,29 @@ except:
    import pickle
 import time
 from math import log10
+from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
+def query_expansion(queries_file_name):
+    # output list of queries
+    query = []
+    raw_query = open(queries_file_name, "r")
+    line = raw_query.readline()
+    # delete the line return that comes with readline()
+    line = line[:-1]
+    print("Query before expansion : "+line)
+    for term in line.split():
+        hypernym = ""
+        synsets = wn.synsets(term.lower())
+        if len(synsets) != 0:
+            hypernyms = synsets[0].hypernyms()
+            if len(hypernyms) != 0:
+                hypernym = hypernyms[0].lemmas()[0].name().replace('_', ' ')
+        query.append(term)
+        if hypernym != "":
+            query.append(hypernym)
+    print("Query after expansion : "+' '.join(query))
+    raw_query.close()
+    return query
 
 """
     Helper function that takes the name of a text file with free text queries, in which there is one query by line
@@ -135,6 +157,7 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     sys.exit(2)
 
 start = time.time()
-search(dictionary_file, postings_file, file_of_queries, file_of_output)
+# search(dictionary_file, postings_file, file_of_queries, file_of_output)
+query_expansion(file_of_queries)
 end = time.time()
 print("Query time : "+str(end - start))
