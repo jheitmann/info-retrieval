@@ -194,7 +194,7 @@ class Postings(object):
 
     # Jumps to the specified position in the list (relative position)
     def jump(self, position):
-        if (position < nbr_nodes):
+        if (position < self.nbr_nodes):
             self.pointer = position * NODE_SIZE
 
     # Jumps to the first node in the list

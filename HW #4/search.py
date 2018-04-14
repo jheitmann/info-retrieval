@@ -1,4 +1,5 @@
     #!/usr/bin/python
+#A0174721H
 import re
 import nltk
 import sys
@@ -80,12 +81,13 @@ def and_op(postings1, postings2):
             element1 = postings1.next_node()
             element2 = postings2.next_node()
 
-    return posting_list(result)
+    return Postings(result)
 
-def evaluate_boolean_query(query, dict, postings):
-    posting_list = fetch_posting_list(query[0], dict[number_of_terms_in_phrase(query[0])], postings)
-    for i in range(1, len(query)):
-        posting_list_right = fetch_posting_list(query[i], dict[number_of_terms_in_phrase(query[i]), postings])
+def evaluate_boolean_query(query, dictionary, postings):
+    parsed_query = parse_boolean_query(query)
+    posting_list = fetch_posting_list(parsed_query[0], dictionary, postings)
+    for i in range(1, len(query) - 1):
+        posting_list_right = fetch_posting_list(parsed_query[i], dictionary, postings)
         posting_list = and_op(posting_list, posting_list_right)
     return posting_list
 
@@ -160,9 +162,12 @@ def compute_w_t_q(query, dictionary, N):
     Reads a posting list from file given a term and the dictionary
 """
 def fetch_posting_list(term, dictionary, postings):
-    offset = dictionary[term][1]
-    postings.seek(offset)
-    posting_list = Postings(postings.readline())
+    if term in dictionary:
+        offset = dictionary[term][1]
+        postings.seek(offset)
+        posting_list = Postings(postings.readline())
+    else:
+        posting_list = Postings("")
     return posting_list
 
 """
@@ -186,10 +191,10 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
     if(is_boolean_query(query)):
         resulting_posting_list = evaluate_boolean_query(query, dictionary, postings)
         result = ""
-        node = resulting_posting_list.next_doc()
+        node = resulting_posting_list.next_node()
         while(node is not None):
-            result = result + " " + get_docID(node)
-            node = resulting_posting_list.next_doc()
+            result = result + " " + str(get_docID(node))
+            node = resulting_posting_list.next_node()
         if result != "":
             result = result[1:]
         output.write(result)
