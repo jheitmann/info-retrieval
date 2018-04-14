@@ -55,7 +55,9 @@ dictionary is our inverted index, in part 1 it contains the mapping
 position of the posting list that corresponds to the key (a word). Hence the final 
 mapping is the following: (word: (doc_frequency, offset)).
 """
-dictionary = {} 
+uni_dic = {}
+bi_dic = {}
+tri_dic = {}
 """
 (word: number) is a bijective mapping, if word is the ith term encountered during the
 indexing phase, then number = i. Once the index is complete, number ranges from 0 to 
@@ -83,9 +85,9 @@ for docID in documents: # Scan all the documents
 			words = nltk.word_tokenize(line) # Tokenized words
 			for word in words:
 				reduced_word = stem_and_casefold(word) # Applies stemming and case-folding
-				dictionary.setdefault(reduced_word,0)
+				uni_dic.setdefault(reduced_word,0)
 
-				if dictionary[reduced_word] == 0: # First occurence of reduced_word
+				if uni_dic[reduced_word] == 0: # First occurence of reduced_word
 					word_number[reduced_word] = vocab_size 
 					new_line = new_node(docID) + '\n' 
 
@@ -93,7 +95,7 @@ for docID in documents: # Scan all the documents
 					with open(output_file_postings, 'a') as outfile_post: 
 						outfile_post.write(new_line) 
 
-					dictionary[reduced_word] += 1 # doc_frequency updated 
+					uni_dic[reduced_word] += 1 # doc_frequency updated 
 					vocab_size += 1 # A new word
 
 				else: # reduced_word already in index
@@ -119,7 +121,7 @@ for docID in documents: # Scan all the documents
 					else: # New node appended to the posting list
 						new_line = posting_list.to_string() + new_node(docID) + '\n' 
 						update_posting_list(output_file_postings, line_number, new_line)  
-						dictionary[reduced_word] += 1 # doc_frequency updated
+						uni_dic[reduced_word] += 1 # doc_frequency updated
 
 
 
@@ -141,9 +143,9 @@ with open(output_file_postings, 'r+') as outfile_post, open(output_file_dictiona
 			weight = 1 + math.log10(get_tf(next_node))
 			length[get_docID(next_node)] += weight*weight # tf-idf square 
 
-		dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
+		uni_dic[reduced_word] = (uni_dic[reduced_word], offset) # Update the dictionary
 		offset += len(next_line)
 
-	pickle.dump(dictionary,outfile_dict)
+	pickle.dump(uni_dic,outfile_dict)
 	# Final length is obtained after computing the square root of the previous value
 	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
