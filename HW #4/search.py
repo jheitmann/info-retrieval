@@ -1,4 +1,4 @@
-#!/usr/bin/python
+    #!/usr/bin/python
 import re
 import nltk
 import sys
@@ -10,7 +10,38 @@ except:
    import pickle
 import time
 from math import log10
+from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
+def query_expansion(query):
+    query_expanded = []
+    print("Query before expansion : "+' '.join(query))
+    for term in query:
+        hypernym = ""
+        synsets = wn.synsets(term.lower())
+        if len(synsets) != 0:
+            hypernyms = synsets[0].hypernyms()
+            if len(hypernyms) != 0:
+                hypernym = hypernyms[0].lemmas()[0].name().replace('_', ' ')
+        query_expanded.append(term)
+        if hypernym != "":
+            query_expanded.append(hypernym)
+    print("Query after expansion : "+' '.join(query_expanded))
+    return query_expanded
+
+# return whether a given query (in a list format) is boolean
+# boolean query either contain the "AND" keyword or contain phrasal queries delimited by ""
+# the special case of a boolean query with one word only is going to be considered to be a phrasal query
+def is_boolean_query(query):
+    for term in query:
+        if term == 'AND' or term[0] == '"':
+            return True
+    return False
+
+def read_query_from_file(queries_file_name):
+    query_file = open(queries_file_name, "r")
+    query = query_file.readline()[:-1].split()
+    query_file.close()
+    return query
 
 """
     Helper function that takes the name of a text file with free text queries, in which there is one query by line
@@ -135,6 +166,12 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     sys.exit(2)
 
 start = time.time()
-search(dictionary_file, postings_file, file_of_queries, file_of_output)
+# search(dictionary_file, postings_file, file_of_queries, file_of_output)
+query = read_query_from_file(file_of_queries)
+if is_boolean_query(query):
+    print("The query is boolean")
+else:
+    print("The query is not boolean")
+query_expansion(query)
 end = time.time()
 print("Query time : "+str(end - start))
