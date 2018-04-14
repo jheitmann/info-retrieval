@@ -6,6 +6,7 @@ import getopt
 import linecache
 import tempfile
 import math
+import csv
 try:
    import cPickle as pickle
 except:
@@ -39,16 +40,16 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
+csv.field_size_limit(sys.maxsize) # Explain
 
 # Sorted list of docIDs
-documents = sorted(map(int, listdir(input_directory))) # [:200] for testing purposes
+#documents = sorted(map(int, listdir(input_directory))) # Change those
 # Total number of documents
-NRB_DOCS = len(documents)
 """ 
 Given a document with docID N, length[N] stores its length, as described in the lecture
 notes, in order to do length normalization.
 """
-length = {docID: 0 for docID in documents}
+#length = {docID: 0 for docID in documents} # change this
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
 (word: doc_frequency). Part 3 then adds to the value of a (key,value) tupple the 
@@ -76,55 +77,56 @@ Every file with a docID in documents is opened and read, its words are first pro
 by the nltk tokenizer and second by the stem_and_casefold(word_to_process) function, 
 which yields a reduced form of the word.
 """
-for iteration, docID in enumerate(documents): # Scan all the documents
-	if iteration % 1000 == 0:
-		print "Iteration " + str(iteration) + '\n'
+with open('dataset.csv', 'rb') as csvfile: # Scan all the documents
 
-	doc_path = input_directory + str(docID) # Absolute path of the current document
+	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
+	law_reports.next()
+	for rep_nbr, report in enumerate(law_reports):
+		if rep_nbr % 1000 == 999:
+			print("1000 docs were processed\n")
+		docID = int(report[0]) # Extract docID
+		#print("Report being processed: " + str(docID))
+		content = report[2].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
+		words = nltk.word_tokenize(content) # Tokenized words
+		#print("First words of the report " + ", ".join(words[:10]) + '\n')
+		for word in words:
+			reduced_word = stem_and_casefold(word) # Applies stemming and case-folding
+			dictionary.setdefault(reduced_word,0)
 
-	with open(doc_path, 'r') as next_doc:
+			if dictionary[reduced_word] == 0: # First occurence of reduced_word
+				word_number[reduced_word] = vocab_size 
+				new_line = new_node(docID) + '\n' 
 
-		for line in next_doc:
-			words = nltk.word_tokenize(line) # Tokenized words
+				# Append this newly created posting list to posting-list-file
+				postings.append(new_line)
 
-			for word in words:
-				reduced_word = stem_and_casefold(word) # Applies stemming and case-folding
-				dictionary.setdefault(reduced_word,0)
+				dictionary[reduced_word] += 1 # doc_frequency updated 
+				vocab_size += 1 # A new word
 
-				if dictionary[reduced_word] == 0: # First occurence of reduced_word
-					word_number[reduced_word] = vocab_size 
-					new_line = new_node(docID) + '\n' 
+			else: # reduced_word already in index
+				line_number = word_number[reduced_word] 
+				"""
+				Using linecache, lines start at 1 (not at 0)
+				We need to clear the cache before loading a line, so that it includes
+				the most recent changes made to it
+				""" 
+				line = postings[line_number]
+				posting_list = Postings(line)
+				last_node = posting_list.value_at(-1) 
+				last_docID = get_docID(last_node)
 
-					# Append this newly created posting list to posting-list-file
-					postings.append(new_line)
-
-					dictionary[reduced_word] += 1 # doc_frequency updated 
-					vocab_size += 1 # A new word
-
-				else: # reduced_word already in index
-					line_number = word_number[reduced_word] 
-					"""
-					Using linecache, lines start at 1 (not at 0)
-					We need to clear the cache before loading a line, so that it includes
-					the most recent changes made to it
-					""" 
-					line = postings[line_number]
-					posting_list = Postings(line)
-					last_node = posting_list.value_at(-1) 
-					last_docID = get_docID(last_node)
-
-					"""
-					If docID and last_docID are identical, we increment the term_frequency
-					attribute of last_node. If not, we append a new node to the posting
-					list.
-					"""
-					if  docID == last_docID: # term_frequency needs to be updated
-						new_line = posting_list.to_string()[:-NODE_SIZE] + updated_tf(last_node) + '\n'
-						postings[line_number] = new_line
-					else: # New node appended to the posting list
-						new_line = posting_list.to_string() + new_node(docID) + '\n' 
-						postings[line_number] = new_line 
-						dictionary[reduced_word] += 1 # doc_frequency updated
+				"""
+				If docID and last_docID are identical, we increment the term_frequency
+				attribute of last_node. If not, we append a new node to the posting
+				list.
+				"""
+				if  docID == last_docID: # term_frequency needs to be updated
+					new_line = posting_list.to_string()[:-NODE_SIZE] + updated_tf(last_node) + '\n'
+					postings[line_number] = new_line
+				else: # New node appended to the posting list
+					new_line = posting_list.to_string() + new_node(docID) + '\n' 
+					postings[line_number] = new_line 
+					dictionary[reduced_word] += 1 # doc_frequency updated
 
 
 
@@ -142,9 +144,9 @@ with open(output_file_postings, 'w') as outfile_post, open(output_file_dictionar
 		reduced_word = word_number[i]
 		next_posting_list = Postings(next_line)
 
-		for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
+		"""for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
 			weight = 1 + math.log10(get_tf(next_node))
-			length[get_docID(next_node)] += weight*weight # tf-idf square 
+			length[get_docID(next_node)] += weight*weight # tf-idf square """
 
 		dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
 		outfile_post.write(next_line)
@@ -152,4 +154,4 @@ with open(output_file_postings, 'w') as outfile_post, open(output_file_dictionar
 
 	pickle.dump(dictionary,outfile_dict)
 	# Final length is obtained after computing the square root of the previous value
-	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
+	#pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
