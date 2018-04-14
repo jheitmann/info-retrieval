@@ -47,27 +47,33 @@ def and_op(postings1, postings2):
     result = ""
     postings1.rewind()
     postings2.rewind()
-    element1 = postings1.next()
-    element2 = postings2.next()
+    element1 = postings1.next_node()
+    element2 = postings2.next_node()
 
     while element1 is not None and element2 is not None:
-        if element1 is not None and element1 < element2:
-            element1 = postings1.next()
-        elif element2 is not None and element1 > element2:
-            element2 = postings2.next()
+        if element1 is not None and get_docID(element1) < get_docID(element2):
+            element1 = postings1.next_node()
+        elif element2 is not None and get_docID(element1) > get_docID(element2):
+            element2 = postings2.next_node()
         else:
-            result += new_node(0, element1)
-            element1 = postings1.next()
-            element2 = postings2.next()
+            result += element1
+            element1 = postings1.next_node()
+            element2 = postings2.next_node()
 
     return posting_list(result)
 
-def evaluate_boolean_query(query, dictionary_mono, dictionary_bi, dictionary_tri, postings):
-    return 0
+def evaluate_boolean_query(query, dict, postings):
+    posting_list = fetch_posting_list(query[0], dict[number_of_terms_in_phrase(query[0])], postings)
+    for i in range(1, len(query)):
+        posting_list_right = fetch_posting_list(query[i], dict[number_of_terms_in_phrase(query[i]), postings])
+        posting_list = and_op(posting_list, posting_list_right)
+    return posting_list
+
+def number_of_terms_in_phrase(phrase):
+    return len(phrase.split(' '))
 
 def parse_boolean_query(query):
     parsed_query = []
-
     between_quotes = False
     phrase = ""
     for term in query:
@@ -77,30 +83,17 @@ def parse_boolean_query(query):
         elif term.endswith('"'):
             between_quotes = False
             phrase += " "+term[:-1]
-            parsed_query.append(phrase)
+            parsed_query.append(tokenize(phrase))
         else:
             if between_quotes == True:
                 phrase += " "+term
-            else:
-                parsed_query.append(term)
+            elif term != 'AND':
+                parsed_query.append(tokenize(term))
     return parsed_query
 
-"""
-    Helper function that takes the name of a text file with free text queries, in which there is one query by line
-    and returns a list of queries. (a query is also a list, thus the function returns a list of lists)
-"""
-def prepare_queries(queries_file_name):
-    # output list of queries
-    queries = []
-
-    raw_queries = open(queries_file_name, "r")
-
-    # each query in the queries_file is traversed
-    for line in raw_queries:
-        terms = nltk.word_tokenize(line)
-        queries.append([stem_and_casefold(term) for term in terms])
-    raw_queries.close()
-    return queries
+def tokenize(phrase):
+    terms = nltk.word_tokenize(phrase)
+    return ' '.join([stem_and_casefold(term) for term in terms])
 
 """
     Helper function that finds the top 10 documents based on the cosine similarity based on the pseudo code provided
@@ -168,11 +161,26 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
 
     # queries are prepared using the above defined helper function
     postings = open(postings_file_name, "r")
-    queries = prepare_queries(queries_file_name)
+    query = read_query_from_file(queries_file_name)
 
-    # every query is evaluated and the output written to the output file
-    for query in queries:
-        output.write(cosine_score(query, postings, dictionary, length) + '\n')#GET RID OF LAST LINE RETURN
+    if(is_boolean_query(query)):
+        resulting_posting_list = evaluate_boolean_query(query, dictionary, postings)
+        result = ""
+        node = resulting_posting_list.next_doc()
+        while(node is not None):
+            result = result + " " + get_docID(node)
+            node = resulting_posting_list.next_doc()
+        if result != "":
+            result = result[1:]
+        output.write(result)
+
+    else:
+        prepared_query = [tokenize(term) for term in query]
+
+        #uncomment for query expansion using synonyms
+        #prepared_query = query_expansion(prepared_query)
+        
+        output.write(cosine_score(prepared_query, postings, dictionary, length))
 
     postings.close()
     output.close()
@@ -208,8 +216,9 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
     sys.exit(2)
 
 start = time.time()
-# search(dictionary_file, postings_file, file_of_queries, file_of_output)
+search(dictionary_file, postings_file, file_of_queries, file_of_output)
 
+"""
 query = read_query_from_file(file_of_queries)
 if is_boolean_query(query):
     print("The query is boolean")
@@ -219,6 +228,7 @@ if is_boolean_query(query):
 else:
     print("The query is not boolean")
     query_expansion(query)
+"""
 
 end = time.time()
 print("Query time : "+str(end - start))
