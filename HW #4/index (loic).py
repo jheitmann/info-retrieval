@@ -5,6 +5,8 @@ import sys
 import getopt
 import os
 import math
+import csv
+import time
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
@@ -36,18 +38,12 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 # -in: filename to tokenize
 # -out: the tokens of the file
 PORTER = nltk.stem.porter.PorterStemmer()
-def tokenizeFile(fname):
-    f = open(fname,'r')
-    text = f.read()
-    sentences = nltk.sent_tokenize(text)
-    words = []
-    for sent in sentences:
-        words = words + nltk.word_tokenize(sent)
+def tokenizeFile(row):
+    sentences = row[2].decode("utf-8").encode("ascii","ignore")
+    words =nltk.word_tokenize(sentences)
     tokens = []
     for w in words:
-        if not( w == "," or w==".") :
-            tokens +=[PORTER.stem(w)]
-    f.close()
+        tokens +=[PORTER.stem(w)]
     return tokens
 
 #
@@ -56,15 +52,17 @@ def tokenizeFile(fname):
 #
 # -in: files the files containing the stream of token
 # -out:  outs containing the name of the dictionnary file and posting file
-def spimiInvert( files , outs):
+def spimiInvert( rows , outs):
     dictionary = {}
     dictionary["*"] =[]
-    for fname in files:
-        fileId = fname.split('/')[-1]
-        tokens = tokenizeFile(fname)
+    
+    for row in rows:
+        fileId = row[0]
+        tokens = tokenizeFile(row)
         
         lengthVec =0
 
+        start =time.time()
         for token in tokens:
             
             #if in dictionary then
@@ -72,14 +70,14 @@ def spimiInvert( files , outs):
             if token in dictionary.keys():
                 last = dictionary[token][-1]
                 if last[0] != fileId:
-                    dictionary[token]+= [(fileId,1)]
+                    dictionary[token] += [(fileId,1)]
                     lengthVec +=1
                 else:
-                    x = dictionary[token][-1][1]
-                    dictionary[token][-1] = (dictionary[token][-1][0],x+1)
-                    newW = (1+math.log(x+1,10))
-                    oldW = (1+math.log(x,10))
-                    lengthVec += newW*newW - oldW*oldW
+                    x =last[1]
+                    dictionary[token][-1] = (fileId,x+1)
+                    #newW = (1+math.log(x+1,10))
+                    #oldW = (1+math.log(x,10))
+                    #lengthVec += newW*newW - oldW*oldW
             
             #if the term is not in the dictionary
             else:
@@ -87,7 +85,10 @@ def spimiInvert( files , outs):
                 lengthVec +=1
             
         # add size of documents
-        dictionary["*"] +=[(fileId, math.sqrt(lengthVec))] 
+        #dictionary["*"] +=[(fileId, math.sqrt(lengthVec))] 
+        end = time.time()
+        print end-start
+        
         
     sorted_terms = dictionary.keys()
     sorted_terms.sort()
@@ -194,36 +195,37 @@ def mergeBlocks( blocks , outs):
 
 
 #--------------------------------CONSTANTS-----------------------------#
-DOC_PER_BLOCK = 600
+DOC_PER_BLOCK = 60
 #=================================MAIN=================================#
 print("READ FILES")
-files = os.listdir(input_directory)
-filesInt=[]
-for fil in files:
-    filesInt +=[int(fil)]
-filesInt.sort()
-filesSorted = []
-for fil in filesInt:
-    filesSorted+=[str(fil)]
-relativeFiles=[]
-for fil in filesSorted:
-    relativeFiles+=[input_directory+"/"+fil]
-nbFiles = len(files)
+csv.field_size_limit(sys.maxsize)
+f = open(input_directory,'rb')
+freader = csv.reader(f, delimiter=',',quotechar='"') 
 
+tags = freader.next()
 #---Index Construction---#
 #separate files in block
 #call spimi-invert for each block
 print("START CONSTRUCTING INDEX")
 blocks = []
-for i in range(0,nbFiles ,DOC_PER_BLOCK):
-    print(str(int(i*100/float(nbFiles)))+"%    BLOCK "+str(i/DOC_PER_BLOCK))
-    blockNames = "dic" + str(i/DOC_PER_BLOCK)+".txt", "post" + str(i/DOC_PER_BLOCK)+".txt"
-    spimiInvert(relativeFiles[i:i+DOC_PER_BLOCK],blockNames)
-    blocks += [blockNames]
+blockOfRows = []
+for i, row in enumerate(freader):
+    if i%DOC_PER_BLOCK == DOC_PER_BLOCK-1:
+        block_number = i/DOC_PER_BLOCK
+        print("BLOCK "+str(block_number))
+        blockNames = "dic" + str(block_number)+".txt", "post" + str(block_number)+".txt"
+        spimiInvert(blockOfRows,blockNames)
+        blocks += [blockNames]
+        blockOfRows = []
+    blockOfRows+= [row]
+    
 print("BLOCKS CREATED\n\nSTART MERGING")
+
+f.close()
 # merge all the blocks in one
 mergeBlocks(blocks,(output_file_dictionary,output_file_postings))
 print("MERGED")
+
 #delete blocks files
 for d,p in blocks :
     os.remove(d)
