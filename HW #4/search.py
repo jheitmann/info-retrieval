@@ -12,6 +12,26 @@ import time
 from math import log10
 from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
+ALPHA = 0.7
+BETA = 0.3
+def rocchio_algorithm(query):
+    relevants = cosine_score(query)
+    relevants = relevants.split()
+    n_r = len(relevants)
+    new_query = {}
+    
+    for term in query:
+        new_query[term] += ALPHA
+    
+    for docid in relevants:
+        for word,tf in most_common[docid]:
+            w = (1+log(tf))/length[docid]
+            new_query[word] += (BETA*w)/n_r
+    
+    return new_query
+
+
+
 def query_expansion(query):
     query_expanded = []
     print("Query before expansion : "+' '.join(query))
