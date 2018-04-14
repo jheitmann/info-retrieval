@@ -186,10 +186,16 @@ class Postings(object):
         else:
             raise StopIteration
 
+    def next_node(self):
+        try:
+            return self.next()
+        except StopIteration:
+            return None
+
     # Jumps to the specified position in the list (relative position)
     def jump(self, position):
         if (position < nbr_nodes):
-            pointer = position * NODE_SIZE
+            self.pointer = position * NODE_SIZE
 
     # Jumps to the first node in the list
     def rewind(self):
