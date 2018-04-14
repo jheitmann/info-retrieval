@@ -43,6 +43,48 @@ def read_query_from_file(queries_file_name):
     query_file.close()
     return query
 
+def and_op(postings1, postings2):
+    result = ""
+    postings1.rewind()
+    postings2.rewind()
+    element1 = postings1.next()
+    element2 = postings2.next()
+
+    while element1 is not None and element2 is not None:
+        if element1 is not None and element1 < element2:
+            element1 = postings1.next()
+        elif element2 is not None and element1 > element2:
+            element2 = postings2.next()
+        else:
+            result += new_node(0, element1)
+            element1 = postings1.next()
+            element2 = postings2.next()
+
+    return posting_list(result)
+
+def evaluate_boolean_query(query, dictionary_mono, dictionary_bi, dictionary_tri, postings):
+    return 0
+
+def parse_boolean_query(query):
+    parsed_query = []
+
+    between_quotes = False
+    phrase = ""
+    for term in query:
+        if term.startswith('"'):
+            between_quotes = True
+            phrase = term[1:]
+        elif term.endswith('"'):
+            between_quotes = False
+            phrase += " "+term[:-1]
+            parsed_query.append(phrase)
+        else:
+            if between_quotes == True:
+                phrase += " "+term
+            else:
+                parsed_query.append(term)
+    return parsed_query
+
 """
     Helper function that takes the name of a text file with free text queries, in which there is one query by line
     and returns a list of queries. (a query is also a list, thus the function returns a list of lists)
@@ -115,7 +157,7 @@ def fetch_posting_list(term, dictionary, postings):
 """
 def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_output_name):
 
-    # the dictionary is loaded from file using the pickle library
+    #the dictionary is loaded from file using the pickle library
     serialized = open(dictionary_file_name, "r")
     dictionary = pickle.load(serialized)
     length = pickle.load(serialized)
@@ -167,11 +209,16 @@ if dictionary_file == None or postings_file == None or file_of_queries == None o
 
 start = time.time()
 # search(dictionary_file, postings_file, file_of_queries, file_of_output)
+
 query = read_query_from_file(file_of_queries)
 if is_boolean_query(query):
     print("The query is boolean")
+    parsed_query = parse_boolean_query(query)
+    print("The parsed boolean query is :")
+    print(parsed_query)
 else:
     print("The query is not boolean")
-query_expansion(query)
+    query_expansion(query)
+
 end = time.time()
 print("Query time : "+str(end - start))
