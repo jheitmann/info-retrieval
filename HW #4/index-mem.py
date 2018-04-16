@@ -7,6 +7,7 @@ import linecache
 import tempfile
 import math
 import csv
+import os
 try:
    import cPickle as pickle
 except:
@@ -78,8 +79,7 @@ tuple_postings = []
 DOCS_PER_BLOCK = 50
 block_size = 0
 block_dictionnaries =[]
-block_lenghts = []
-
+block_posts_files=[]
 
 #============================ Write index to block ===========================#
 """
@@ -89,8 +89,7 @@ updating the dictionary with the offset in the posting-list-file that correspond
 certain word. FIXME Finally, we serialize both dictionary and length. FIXME
 """
 def write_block(n):
-	dicName = "dic"+str(n)
-	postName = "post"+str(n)
+	postName = "block"+str(n)
 	with open(postName, 'w') as outfile_post: #,open(dicName, 'w') as outfile_dict:
 		offset = 0
 		global uni_wnbr
@@ -100,7 +99,7 @@ def write_block(n):
 		global tuple_wnbr
 		global tuple_postings
 		global block_dictionnaries
-		global block_lenghts
+		global block_posts_files
 
 		for i, next_line in enumerate(uni_postings):
 			reduced_word = uni_wnbr[i]
@@ -129,7 +128,7 @@ def write_block(n):
 		
 		#save the dictionnary and lenghts
 		block_dictionnaries.append(dictionary)
-		block_lenghts.append(length)
+		block_posts_files.append(postName)
 
 
 
@@ -217,7 +216,6 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 			write_block(block_number)
 			
 			dictionary = {}
-			length = {}
 			uni_wnbr = BidirectionalDict()
 			tuple_wnbr = BidirectionalDict()
 
@@ -226,22 +224,96 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 
 			uni_postings = []
 			tuple_postings = []
-			
+
+
 if rep_nbr% DOCS_PER_BLOCK != DOCS_PER_BLOCK -1 :
 	block_size +=1
 	block_number = rep_nbr/ DOCS_PER_BLOCK
 	print "WRITE BLOCK "+str(block_number)
 	write_block(block_number)
+	
+	#make sure that we won't reuse these after
+	uni_wnbr = None
+	tuple_wnbr = None
+	uni_size = 0
+	tuple_size = 0
+
+	uni_postings = None
+	tuple_postings = None
 
 
 #============================= Merge blocks in one file (Part2)=======================#
+print "START MERGING"
+dictionary = {}
+post_files = []
 
+# open files
+for postName in block_posts_files:
+	post_files.append(open(postName,"r"))
 
+# list and sort all terms for each dictionnary
+block_terms =[]
+for dic  in block_dictionnaries:
+	terms = dic.keys()
+	terms.sort()
+	block_terms.append(terms)
 
+# Merge
+with open(output_file_postings,"w") as mergedPost:
+	while True:
+		#initialize
+		termMin = None
+		min_ids = []
+		
+		#identifie minimum term
+		for idx in range(block_size):
+			if not block_terms[idx]:
+				continue
+			if  termMin == None or block_terms[idx][0] < termMin:
+				termMin = block_terms[idx][0]
+				min_ids = [idx]
+			elif block_terms[idx][0] == termMin:
+				min_ids.append(idx)
+				
+		
+		#close if all dictionnary are finished
+		if termMin == None:
+			break
+		
+		#compute total document frequency
+		df = 0
+		for idx in min_ids:
+			df += block_dictionnaries[idx][termMin][0]
+		
+		#add in final dic
+		dictionary[termMin] = (df,mergedPost.tell())
+		
+		
+		#write all post in mergedPost
+		for idx in min_ids:
+			#read postList
+			offset = block_dictionnaries[idx][termMin][1]
+			post_files[idx].seek(offset)
+			posting_list = post_files[idx].readline()
+			if posting_list[-1] == "\n":
+				posting_list = posting_list[:-1]
+			
+			#write in merged file
+			mergedPost.write(posting_list);
+			
+			#update used term
+			block_terms[idx].pop(0)
+		mergedPost.write("\n")
 
+#close files
+for f in post_files:
+	f.close()
+for fname in block_posts_files:
+	os.remove(fname)
 
+with open(output_file_dictionary,"w") as outfile_dict:
+	pickle.dump(dictionary,outfile_dict)
+	# Final length is obtained after computing the square root of the previous value
+	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
 
-
-
-
-
+print "COMPLETE"
