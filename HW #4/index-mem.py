@@ -76,7 +76,7 @@ uni_postings = []
 tuple_postings = []
 
 #Blocks related variables
-DOCS_PER_BLOCK = 50
+DOCS_PER_BLOCK = 500
 block_size = 0
 block_dictionnaries =[]
 block_posts_files=[]
