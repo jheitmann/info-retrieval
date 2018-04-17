@@ -7,6 +7,7 @@ import linecache
 import tempfile
 import math
 import csv
+import os
 try:
    import cPickle as pickle
 except:
@@ -74,13 +75,71 @@ tuple_size = 0
 uni_postings = []
 tuple_postings = []
 
+#Blocks related variables
+DOCS_PER_BLOCK = 500
+block_size = 0
+block_dictionnaries =[]
+block_posts_files=[]
+
+#============================ Write index to block ===========================#
+"""
+What remains to be done is to compute the length of every document (square root of the 
+sum of tf-idf score squares, computed for all terms in the document), while also 
+updating the dictionary with the offset in the posting-list-file that corresponds to a 
+certain word. FIXME Finally, we serialize both dictionary and length. FIXME
+"""
+def write_block(n):
+	postName = "block"+str(n)
+	with open(postName, 'w') as outfile_post: #,open(dicName, 'w') as outfile_dict:
+		offset = 0
+		global uni_wnbr
+		global uni_postings
+		global length
+		global dictionary
+		global tuple_wnbr
+		global tuple_postings
+		global block_dictionnaries
+		global block_posts_files
+
+		for i, next_line in enumerate(uni_postings):
+			reduced_word = uni_wnbr[i]
+			next_posting_list = Postings(next_line)
+
+			for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
+				weight = 1 + math.log10(get_tf(next_node))
+				length[get_docID(next_node)] += weight*weight # tf-idf square 
+
+			dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
+			outfile_post.write(next_line)
+			offset += len(next_line)
+
+		for i, next_line in enumerate(tuple_postings): # duplicate code
+			reduced_word = tuple_wnbr[i] # Explain
+			next_posting_list = Postings(next_line)
+
+			dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
+			outfile_post.write(next_line)
+			offset += len(next_line)
+
+		#pickle.dump(dictionary,outfile_dict)
+		# Final length is obtained after computing the square root of the previous value
+		#pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
+		
+		
+		#save the dictionnary and lenghts
+		block_dictionnaries.append(dictionary)
+		block_posts_files.append(postName)
+
+
+
+
 #============================= Create the index (Part 1) =============================#
 """
 Every file with a docID in documents is opened and read, its words are first processed 
 by the nltk tokenizer and second by the stem_and_casefold(word_to_process) function, 
 which yields a reduced form of the word.
 """
-with open('dataset.csv', 'rb') as csvfile: # Scan all the documents
+with open(input_directory, 'rb') as csvfile: # Scan all the documents
 
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain
@@ -147,38 +206,114 @@ with open('dataset.csv', 'rb') as csvfile: # Scan all the documents
 					uni_postings[line_number] = new_line
 				else:
 					tuple_postings[line_number] = new_line
+					
+		
+		#============================ Write index to block ===========================#
+		if rep_nbr% DOCS_PER_BLOCK == DOCS_PER_BLOCK -1 :
+			block_size +=1
+			block_number = rep_nbr/ DOCS_PER_BLOCK
+			print "WRITE BLOCK "+str(block_number)
+			write_block(block_number)
+			
+			dictionary = {}
+			uni_wnbr = BidirectionalDict()
+			tuple_wnbr = BidirectionalDict()
+
+			uni_size = 0
+			tuple_size = 0
+
+			uni_postings = []
+			tuple_postings = []
 
 
-#============================ Write index to file (Part 2) ===========================#
-"""
-What remains to be done is to compute the length of every document (square root of the 
-sum of tf-idf score squares, computed for all terms in the document), while also 
-updating the dictionary with the offset in the posting-list-file that corresponds to a 
-certain word. Finally, we serialize both dictionary and length.
-"""
-with open(output_file_postings, 'w') as outfile_post, open(output_file_dictionary, 'w') as outfile_dict:
-	offset = 0
+if rep_nbr% DOCS_PER_BLOCK != DOCS_PER_BLOCK -1 :
+	block_size +=1
+	block_number = rep_nbr/ DOCS_PER_BLOCK
+	print "WRITE BLOCK "+str(block_number)
+	write_block(block_number)
+	
+	#make sure that we won't reuse these after
+	uni_wnbr = None
+	tuple_wnbr = None
+	uni_size = 0
+	tuple_size = 0
 
-	for i, next_line in enumerate(uni_postings):
-		reduced_word = uni_wnbr[i]
-		next_posting_list = Postings(next_line)
+	uni_postings = None
+	tuple_postings = None
 
-		for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
-			weight = 1 + math.log10(get_tf(next_node))
-			length[get_docID(next_node)] += weight*weight # tf-idf square 
 
-		dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
-		outfile_post.write(next_line)
-		offset += len(next_line)
+#============================= Merge blocks in one file (Part2)=======================#
+print "START MERGING"
+dictionary = {}
+post_files = []
 
-	for i, next_line in enumerate(tuple_postings): # duplicate code
-		reduced_word = tuple_wnbr[i] # Explain
-		next_posting_list = Postings(next_line)
+# open files
+for postName in block_posts_files:
+	post_files.append(open(postName,"r"))
 
-		dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
-		outfile_post.write(next_line)
-		offset += len(next_line)
+# list and sort all terms for each dictionnary
+block_terms =[]
+for dic  in block_dictionnaries:
+	terms = dic.keys()
+	terms.sort()
+	block_terms.append(terms)
 
+# Merge
+with open(output_file_postings,"w") as mergedPost:
+	while True:
+		#initialize
+		termMin = None
+		min_ids = []
+		
+		#identifie minimum term
+		for idx in range(block_size):
+			if not block_terms[idx]:
+				continue
+			if  termMin == None or block_terms[idx][0] < termMin:
+				termMin = block_terms[idx][0]
+				min_ids = [idx]
+			elif block_terms[idx][0] == termMin:
+				min_ids.append(idx)
+				
+		
+		#close if all dictionnary are finished
+		if termMin == None:
+			break
+		
+		#compute total document frequency
+		df = 0
+		for idx in min_ids:
+			df += block_dictionnaries[idx][termMin][0]
+		
+		#add in final dic
+		dictionary[termMin] = (df,mergedPost.tell())
+		
+		
+		#write all post in mergedPost
+		for idx in min_ids:
+			#read postList
+			offset = block_dictionnaries[idx][termMin][1]
+			post_files[idx].seek(offset)
+			posting_list = post_files[idx].readline()
+			if posting_list[-1] == "\n":
+				posting_list = posting_list[:-1]
+			
+			#write in merged file
+			mergedPost.write(posting_list);
+			
+			#update used term
+			block_terms[idx].pop(0)
+		mergedPost.write("\n")
+
+#close files
+for f in post_files:
+	f.close()
+for fname in block_posts_files:
+	os.remove(fname)
+
+with open(output_file_dictionary,"w") as outfile_dict:
 	pickle.dump(dictionary,outfile_dict)
 	# Final length is obtained after computing the square root of the previous value
 	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
+
+print "COMPLETE"
