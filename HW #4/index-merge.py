@@ -8,6 +8,7 @@ import tempfile
 import math
 import csv
 import os
+import time
 try:
    import cPickle as pickle
 except:
@@ -88,6 +89,7 @@ sum of tf-idf score squares, computed for all terms in the document), while also
 updating the dictionary with the offset in the posting-list-file that corresponds to a 
 certain word. FIXME Finally, we serialize both dictionary and length. FIXME
 """
+
 def write_block(n):
 	postName = "block"+str(n)
 	with open(postName, 'w') as outfile_post: #,open(dicName, 'w') as outfile_dict:
@@ -139,13 +141,15 @@ def write_block(n):
 
 
 
-
 #============================= Create the index (Part 1) =============================#
 """
 Every file with a docID in documents is opened and read, its words are first processed 
 by the nltk tokenizer and second by the stem_and_casefold(word_to_process) function, 
 which yields a reduced form of the word.
 """
+print "START INDEXING"
+s = time.time()
+
 with open(input_directory, 'rb') as csvfile: # Scan all the documents
 
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
@@ -248,9 +252,16 @@ if rep_nbr% DOCS_PER_BLOCK != DOCS_PER_BLOCK -1 :
 	uni_postings = None
 	tuple_postings = None
 
-
+print "END INDEXING"
+print (time.time() -s)
 #============================= Merge blocks in one file (Part2)=======================#
 print "START MERGING"
+
+#FIXME--DELETE
+print "INITIALIZATION"
+start = time.time()
+
+
 dictionary = {}
 post_files = []
 
@@ -264,6 +275,12 @@ for dic  in block_dictionnaries:
 	terms = dic.keys()
 	terms.sort()
 	block_terms.append(terms)
+
+#FIXME--DELETE
+tot = time.time()-start
+print tot
+print "MERGE LOOP"
+start = time.time()
 
 # Merge
 with open(output_file_postings,"w") as mergedPost:
@@ -310,6 +327,13 @@ with open(output_file_postings,"w") as mergedPost:
 			
 		#write in final file
 		mergedPost.write(final_posting+"\n")
+
+#FIXME--DELETE
+print "\nMERGE TIME"
+print time.time()-start
+print "Total TIMe"
+print time.time()-s
+
 
 #close files
 for f in post_files:
