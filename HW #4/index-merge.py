@@ -90,8 +90,12 @@ block_posts_files=[]
 
 
 #===================== update the top N most frequent term of a doc===========#
+stopWords = set(stopwords.words('english'))
 def update_infos(docid,reduced_word,tf):
+	global stopWords
 	global doc_infos
+	if reduced_word in stopWords:
+		return 0
 	heap = doc_infos[docid][2]
 	if (not heap) or heap[0][1] <tf:
 		insert(heap,(reduced_word,tf))
