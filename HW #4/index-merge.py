@@ -92,8 +92,8 @@ block_posts_files=[]
 #===================== update the top N most frequent term of a doc===========#
 def update_infos(docid,reduced_word,tf):
 	global doc_infos
-	heap = doc_infos[docid]
-	if heap[0][1] <tf:
+	heap = doc_infos[docid][2]
+	if heap and heap[0][1] <tf:
 		insert_key(heap,(reduced_word,tf))
 		if len(heap) >TERM_SAVED:
 			extract_min(heap)
@@ -142,7 +142,7 @@ def write_block(n):
 					tf = get_tf(next_node)
 					weight = 1 + math.log10(tf)
 					docid = get_docID(next_node)
-					doc_infos[docid][0] += weight*weight # tf-idf square 
+					doc_infos[docid][0] =doc_infos[docid][0]+ weight*weight # tf-idf square 
 					update_infos(docid,reduced_word,tf)
 
 				dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
@@ -176,12 +176,12 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain (first line contains tags)
 	for rep_nbr, report in enumerate(law_reports):
-		if rep_nbr == 1250:
+		if rep_nbr == 250:
 			break # For testing purposes
 		
 		
 		docID = int(report[0]) # Extract docID
-		doc_infos[docID] = (0,report[4],[])
+		doc_infos[docID] = [0,report[4],[]]
 		
 		#print("Report being processed: " + str(docID))
 		content = report[2].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
