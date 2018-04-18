@@ -76,7 +76,7 @@ uni_postings = []
 tuple_postings = []
 
 #Blocks related variables
-DOCS_PER_BLOCK = 500
+DOCS_PER_BLOCK = 49
 block_size = 0
 block_dictionnaries =[]
 block_posts_files=[]
@@ -101,25 +101,32 @@ def write_block(n):
 		global block_dictionnaries
 		global block_posts_files
 
-		for i, next_line in enumerate(uni_postings):
-			reduced_word = uni_wnbr[i]
-			next_posting_list = Postings(next_line)
+		sortedTerms = dictionary.keys()
+		sortedTerms.sort()
 
-			for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
-				weight = 1 + math.log10(get_tf(next_node))
-				length[get_docID(next_node)] += weight*weight # tf-idf square 
+		#for i, next_line in enumerate(uni_postings):
+		for reduced_word in sortedTerms:
+			if " " in reduced_word:
+				i = tuple_wnbr[reduced_word] # Explain
+				next_line = tuple_postings[i]
+				next_posting_list = Postings(next_line)
 
-			dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
-			outfile_post.write(next_line)
-			offset += len(next_line)
+				dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
+				outfile_post.write(next_line)
+				offset += len(next_line)
+			else:
+				i = uni_wnbr[reduced_word]
+				next_line = uni_postings[i]
+				next_posting_list = Postings(next_line)
 
-		for i, next_line in enumerate(tuple_postings): # duplicate code
-			reduced_word = tuple_wnbr[i] # Explain
-			next_posting_list = Postings(next_line)
+				for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
+					weight = 1 + math.log10(get_tf(next_node))
+					length[get_docID(next_node)] += weight*weight # tf-idf square 
 
-			dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
-			outfile_post.write(next_line)
-			offset += len(next_line)
+				dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
+				outfile_post.write(next_line)
+				offset += len(next_line)
+
 
 		#pickle.dump(dictionary,outfile_dict)
 		# Final length is obtained after computing the square root of the previous value
@@ -290,20 +297,19 @@ with open(output_file_postings,"w") as mergedPost:
 		
 		
 		#write all post in mergedPost
+		final_posting = ""
 		for idx in min_ids:
 			#read postList
-			offset = block_dictionnaries[idx][termMin][1]
-			post_files[idx].seek(offset)
 			posting_list = post_files[idx].readline()
 			if posting_list[-1] == "\n":
 				posting_list = posting_list[:-1]
-			
-			#write in merged file
-			mergedPost.write(posting_list);
+			final_posting+= posting_list
 			
 			#update used term
 			block_terms[idx].pop(0)
-		mergedPost.write("\n")
+			
+		#write in final file
+		mergedPost.write(final_posting+"\n")
 
 #close files
 for f in post_files:

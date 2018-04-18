@@ -80,7 +80,7 @@ Every file with a docID in documents is opened and read, its words are first pro
 by the nltk tokenizer and second by the stem_and_casefold(word_to_process) function, 
 which yields a reduced form of the word.
 """
-with open('dataset.csv', 'rb') as csvfile: # Scan all the documents
+with open(input_directory, 'rb') as csvfile: # Scan all the documents
 
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain
