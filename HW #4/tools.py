@@ -178,7 +178,7 @@ def min_heapify(A, i):
 
     if not largest == i:
         swap(A, i, largest)
-        max_heapify(A, largest)
+        min_heapify(A, largest)
 
 def insert(A,key):
     heap_size = len(A)

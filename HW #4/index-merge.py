@@ -93,8 +93,8 @@ block_posts_files=[]
 def update_infos(docid,reduced_word,tf):
 	global doc_infos
 	heap = doc_infos[docid][2]
-	if heap and heap[0][1] <tf:
-		insert_key(heap,(reduced_word,tf))
+	if (not heap) or heap[0][1] <tf:
+		insert(heap,(reduced_word,tf))
 		if len(heap) >TERM_SAVED:
 			extract_min(heap)
 

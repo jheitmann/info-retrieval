@@ -4,6 +4,7 @@ import re
 import nltk
 import sys
 import getopt
+import math
 from tools import *
 try:
    import cPickle as pickle
@@ -13,12 +14,13 @@ import time
 from math import log10
 from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
-ALPHA = 0.7
-BETA = 0.3
+ALPHA = 0
+BETA = 0.8
+N_RELEVANT=1
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
-    
     relevants = cosine_score(query,postings, dictionary, doc_info,N)
-    relevants = relevants.split()
+    print relevants
+    relevants = relevants.split()[:N_RELEVANT]
     n_r = len(relevants)
     new_query = {}
     
@@ -26,17 +28,17 @@ def rocchio_algorithm(query,postings, dictionary, doc_info,N):
     
     for term,wtq in query:
         q_len +=wtq*wtq
-    
+    q_len= math.sqrt(q_len)
     for term,wtq in query:
-        new_query[term] = ALPHA*wtq/sqrt(q_len)
-    
+        new_query[term] = ALPHA*wtq/q_len
     for docid in relevants:
+        docid = int(docid)
         for word,tf in doc_info[docid][2]:
-            w = (1+log(tf))/doc_info[docid][0]
-            new_query[word] += (BETA*w)/n_r
+            w = (1+math.log10(tf))/doc_info[docid][0]
+            new_query[word] = new_query.get(word,0)+(BETA*w)/n_r
     
     new_query = new_query.items()
-    
+    print new_query
     return new_query
 
 
@@ -216,7 +218,8 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         prepared_query = compute_w_t_q(prepared_query, dictionary, N)
         
         expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
-        output.write(cosine_score(prepared_query, postings, dictionary, doc_info,N))
+        
+        output.write(cosine_score(expanded_query, postings, dictionary, doc_info,N))
 
     postings.close()
     output.close()
