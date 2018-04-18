@@ -15,6 +15,7 @@ except:
    import pickle
 from os import listdir
 from tools import *
+from nltk.corpus import stopwords
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
@@ -48,10 +49,13 @@ csv.field_size_limit(sys.maxsize) # Explain
 #documents = sorted(map(int, listdir(input_directory))) # Change those
 # Total number of documents
 """ 
-Given a document with docID N, length[N] stores its length, as described in the lecture
+Given a document with docID N, doc_infos[N]=(lenght, court, top N most coomon terms)
+length[N] stores its length, as described in the lecture
 notes, in order to do length normalization.
 """
-length = {}
+doc_infos = {}
+
+TERM_SAVED = 10
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
 (word: doc_frequency). Part 3 then adds to the value of a (key,value) tupple the 
@@ -82,6 +86,19 @@ block_size = 0
 block_dictionnaries =[]
 block_posts_files=[]
 
+
+
+
+#===================== update the top N most frequent term of a doc===========#
+def update_infos(docid,reduced_word,tf):
+	global doc_infos
+	heap = doc_infos[docid]
+	if heap[0][1] <tf:
+		insert_key(heap,(reduced_word,tf))
+		if len(heap) >TERM_SAVED:
+			extract_min(heap)
+
+
 #============================ Write index to block ===========================#
 """
 What remains to be done is to compute the length of every document (square root of the 
@@ -96,7 +113,7 @@ def write_block(n):
 		offset = 0
 		global uni_wnbr
 		global uni_postings
-		global length
+		global doc_infos
 		global dictionary
 		global tuple_wnbr
 		global tuple_postings
@@ -122,8 +139,11 @@ def write_block(n):
 				next_posting_list = Postings(next_line)
 
 				for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
-					weight = 1 + math.log10(get_tf(next_node))
-					length[get_docID(next_node)] += weight*weight # tf-idf square 
+					tf = get_tf(next_node)
+					weight = 1 + math.log10(tf)
+					docid = get_docID(next_node)
+					doc_infos[docid][0] += weight*weight # tf-idf square 
+					update_infos(docid,reduced_word,tf)
 
 				dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
 				outfile_post.write(next_line)
@@ -153,64 +173,43 @@ s = time.time()
 with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	
 	st = time.time()
-	
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
-	law_reports.next() # Explain
+	law_reports.next() # Explain (first line contains tags)
 	for rep_nbr, report in enumerate(law_reports):
 		if rep_nbr == 1250:
 			break # For testing purposes
-
-		print "INIT"
-		temp = time.time()
+		
 		
 		docID = int(report[0]) # Extract docID
-		length[docID] = 0
-		
-		print time.time() -temp
-		print "decode"
-		temp = time.time()
+		doc_infos[docID] = (0,report[4],[])
 		
 		#print("Report being processed: " + str(docID))
 		content = report[2].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
 		
-		print time.time() -temp
-		print "uni_word"
-		temp = time.time()
 		
 		uni_words=[]
 		tokens = nltk.word_tokenize(content)
+		
 		for token in tokens:
 			uni_words.append(stem_and_casefold(token))
 		
 		#uni_words = map(stem_and_casefold, nltk.word_tokenize(content)) # Tokenized, then stemming/casefolding
 		
-		print time.time() -temp
-		print "bi_word"
-		temp = time.time()
 		
 		bi_words = map(lambda t: t[0] + " " + t[1], zip(uni_words,uni_words[1:])) # add function
 		
-		print time.time() -temp
-		print "tri_word"
-		temp = time.time()
 		
 		tri_words = map(lambda t: t[0] + " " + t[1] + " " + t[2], zip(uni_words,uni_words[1:],uni_words[2:])) # add function
 		
-		print time.time() -temp
-		print "concat_all_word"
-		temp = time.time()
 		
 		#print("First words of the report " + ", ".join(words[:10]) + '\n')
 		all_words = uni_words + bi_words + tri_words
 		
-		print time.time() -temp
-		
-		print "FOR ALL WORDS"
-		temp = time.time()
 		
 		for word_idx, reduced_word in enumerate(all_words):
 			dictionary.setdefault(reduced_word,0)
 			term_frequency = 1
+			
 
 			if dictionary[reduced_word] == 0: # First occurence of reduced_word 
 				new_line = new_node(docID) + '\n' 
@@ -259,8 +258,6 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 				else:
 					tuple_postings[line_number] = new_line
 					
-		
-		print time.time() -temp
 		
 		#============================ Write index to block ===========================#
 		if rep_nbr% DOCS_PER_BLOCK == DOCS_PER_BLOCK -1 :
@@ -386,7 +383,8 @@ with open(output_file_postings,"w") as mergedPost:
 print "\nMERGE TIME"
 print time.time()-start
 
-
+print "WRITE DICO TIME"
+temp = time.time()
 
 #close files
 for f in post_files:
@@ -397,8 +395,10 @@ for fname in block_posts_files:
 with open(output_file_dictionary,"w") as outfile_dict:
 	pickle.dump(dictionary,outfile_dict)
 	# Final length is obtained after computing the square root of the previous value
-	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
+	#FIXME
+	pickle.dump({docID: (math.sqrt(info[0]),info[1],info[2]) for docID, info in doc_infos.items()}, outfile_dict) 
 
+print time.time()-temp
 print "COMPLETE"
 print "Total TIME"
 print time.time()-s
