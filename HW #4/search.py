@@ -15,19 +15,27 @@ from nltk.corpus import wordnet as wn #TODO how to correctly import for submissi
 
 ALPHA = 0.7
 BETA = 0.3
-def rocchio_algorithm(query):
-    relevants = cosine_score(query)
+def rocchio_algorithm(query,postings, dictionary, doc_info,N):
+    
+    relevants = cosine_score(query,postings, dictionary, doc_info,N)
     relevants = relevants.split()
     n_r = len(relevants)
     new_query = {}
     
-    for term in query:
-        new_query[term] += ALPHA
+    q_len = 0
+    
+    for term,wtq in query:
+        q_len +=wtq*wtq
+    
+    for term,wtq in query:
+        new_query[term] = ALPHA*wtq/sqrt(q_len)
     
     for docid in relevants:
-        for word,tf in most_common[docid]:
-            w = (1+log(tf))/length[docid]
+        for word,tf in doc_info[docid][2]:
+            w = (1+log(tf))/doc_info[docid][0]
             new_query[word] += (BETA*w)/n_r
+    
+    new_query = new_query.items()
     
     return new_query
 
@@ -121,21 +129,20 @@ def tokenize(phrase):
     Helper function that finds the top 10 documents based on the cosine similarity based on the pseudo code provided
     in class.
 """
-def cosine_score(query, postings, dictionary, length):
+def cosine_score(query, postings, dictionary, doc_info, N):
 
     scores = dict()
-    N = len(length) #Already defined
-    w_t_q = compute_w_t_q(query, dictionary, N)
-    for term in query:
+    for term,w_t_q in query:
         if term in dictionary:
             posting_list = fetch_posting_list(term, dictionary, postings)
+            idf = math.log10(N / dictionary[term][0])
             for pair in posting_list:
                 document = get_docID(pair)
                 tf_t_d = get_tf(pair)
                 w_t_d = 1 + log10(tf_t_d)
-                scores[document] = scores.get(document, 0) + w_t_d * w_t_q[term] # use td_weight
+                scores[document] = scores.get(document, 0) + w_t_d * w_t_q*idf # use td_weight
     for document in scores:
-        scores[document] = scores[document] / length[document]
+        scores[document] = scores[document] / doc_info[document][0]
 
     return top_k(scores)
 
@@ -153,9 +160,9 @@ def compute_w_t_q(query, dictionary, N):
     for term in tf:
         w_t_q[term] = 0
         if term in dictionary:
-            w_t_q[term] = td_weight(tf[term], dictionary[term][0], N)
+            w_t_q[term] = (1 + math.log10(tf[term]))
 
-    return w_t_q
+    return w_t_q.items()
 
 
 """
@@ -178,7 +185,7 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
     #the dictionary is loaded from file using the pickle library
     serialized = open(dictionary_file_name, "r")
     dictionary = pickle.load(serialized)
-    length = pickle.load(serialized)
+    doc_info = pickle.load(serialized)
     serialized.close()
 
     # the output file containing the results of the queries, each result on a different line
@@ -205,7 +212,11 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         #uncomment for query expansion using synonyms
         #prepared_query = query_expansion(prepared_query)
         
-        output.write(cosine_score(prepared_query, postings, dictionary, length))
+        N = len(doc_info) #Already defined
+        prepared_query = compute_w_t_q(prepared_query, dictionary, N)
+        
+        expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
+        output.write(cosine_score(prepared_query, postings, dictionary, doc_info,N))
 
     postings.close()
     output.close()

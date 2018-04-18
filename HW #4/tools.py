@@ -55,11 +55,11 @@ def updated_tf(node):
 
 
 # Returns the tf-idf score
-def td_weight(term_frequency, doc_frequency, nbr_docs):
+def td_weight(term_frequency):
     if term_frequency == 0 or doc_frequency == 0:
         return 0
     else:
-        return (1 + math.log10(term_frequency)) * math.log10(nbr_docs / doc_frequency)
+        return (1 + math.log10(term_frequency))
 
 
 """
