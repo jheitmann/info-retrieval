@@ -158,6 +158,34 @@ def top_k(scores):
         result += str(extract_max(A)) if result == '' else ' '+str(extract_max(A))
     return result
 
+def extract_min(A):
+    if len(A) == 1:
+        return A.pop()[1]
+    max = A[0][1]
+    A[0] = A.pop()
+    min_heapify(A, 0)
+    return max
+
+def min_heapify(A, i):
+    heap_size = len(A)
+    left = 2 * i + 1
+    right = 2 * i + 2
+    largest = i
+    if left < heap_size and (
+            A[left][1] < A[largest][1]:
+        largest = left
+    if right < heap_size and (
+            A[right][1] < A[largest][1] :
+        largest = right
+
+    if not largest == i:
+        swap(A, i, largest)
+        max_heapify(A, largest)
+
+def insert( A,key):
+    
+def increase_key(A,i,key):
+    
 
 """
     This class encapsulates a raw posting-list and offers a convenient interface 
