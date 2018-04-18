@@ -180,8 +180,8 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain (first line contains tags)
 	for rep_nbr, report in enumerate(law_reports):
-		if rep_nbr == 250:
-			break # For testing purposes
+		#if rep_nbr == 250:
+			#break # For testing purposes
 		
 		
 		docID = int(report[0]) # Extract docID
