@@ -171,20 +171,24 @@ def min_heapify(A, i):
     left = 2 * i + 1
     right = 2 * i + 2
     largest = i
-    if left < heap_size and (
-            A[left][1] < A[largest][1]:
+    if (left < heap_size) and (A[left][1] < A[largest][1]):
         largest = left
-    if right < heap_size and (
-            A[right][1] < A[largest][1] :
+    if (right < heap_size) and (A[right][1] < A[largest][1]):
         largest = right
 
     if not largest == i:
         swap(A, i, largest)
         max_heapify(A, largest)
 
-def insert( A,key):
-    
-def increase_key(A,i,key):
+def insert(A,key):
+    heap_size = len(A)
+    A.append(key)
+    index = heap_size
+    parent = index / 2
+    while (index > 0) and (A[parent][1] > A[index][1]):
+        swap(A,index,parent)
+        index = parent
+        parent = index / 2
     
 
 """
