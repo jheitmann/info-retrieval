@@ -16,7 +16,7 @@ stemmer = PorterStemmer()  # stem_and_casefold(word_to_process) uses this stemme
 # Applies the Porter Stemming algorithm, then case-folding
 def stem_and_casefold(word_to_process):
     word = stemmer.stem(word_to_process)
-    word = word.lower()
+    #word = word.lower()
     return word
 
 

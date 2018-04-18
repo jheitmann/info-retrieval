@@ -160,15 +160,54 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 		if rep_nbr == 1250:
 			break # For testing purposes
 
+		print "INIT"
+		temp = time.time()
+		
 		docID = int(report[0]) # Extract docID
 		length[docID] = 0
+		
+		print time.time() -temp
+		print "decode"
+		temp = time.time()
+		
 		#print("Report being processed: " + str(docID))
 		content = report[2].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
-		uni_words = map(stem_and_casefold, nltk.word_tokenize(content)) # Tokenized, then stemming/casefolding
+		
+		print time.time() -temp
+		print "uni_word"
+		temp = time.time()
+		
+		uni_words=[]
+		tokens = nltk.word_tokenize(content)
+		for token in tokens:
+			uni_words.append(stem_and_casefold(token))
+		
+		#uni_words = map(stem_and_casefold, nltk.word_tokenize(content)) # Tokenized, then stemming/casefolding
+		
+		print time.time() -temp
+		print "bi_word"
+		temp = time.time()
+		
 		bi_words = map(lambda t: t[0] + " " + t[1], zip(uni_words,uni_words[1:])) # add function
+		
+		print time.time() -temp
+		print "tri_word"
+		temp = time.time()
+		
 		tri_words = map(lambda t: t[0] + " " + t[1] + " " + t[2], zip(uni_words,uni_words[1:],uni_words[2:])) # add function
+		
+		print time.time() -temp
+		print "concat_all_word"
+		temp = time.time()
+		
 		#print("First words of the report " + ", ".join(words[:10]) + '\n')
 		all_words = uni_words + bi_words + tri_words
+		
+		print time.time() -temp
+		
+		print "FOR ALL WORDS"
+		temp = time.time()
+		
 		for word_idx, reduced_word in enumerate(all_words):
 			dictionary.setdefault(reduced_word,0)
 			term_frequency = 1
@@ -220,6 +259,8 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 				else:
 					tuple_postings[line_number] = new_line
 					
+		
+		print time.time() -temp
 		
 		#============================ Write index to block ===========================#
 		if rep_nbr% DOCS_PER_BLOCK == DOCS_PER_BLOCK -1 :
