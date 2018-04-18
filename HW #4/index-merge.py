@@ -77,7 +77,7 @@ uni_postings = []
 tuple_postings = []
 
 #Blocks related variables
-DOCS_PER_BLOCK = 49
+DOCS_PER_BLOCK = 100
 block_size = 0
 block_dictionnaries =[]
 block_posts_files=[]
@@ -151,11 +151,13 @@ print "START INDEXING"
 s = time.time()
 
 with open(input_directory, 'rb') as csvfile: # Scan all the documents
-
+	
+	st = time.time()
+	
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain
 	for rep_nbr, report in enumerate(law_reports):
-		if rep_nbr == 100:
+		if rep_nbr == 1250:
 			break # For testing purposes
 
 		docID = int(report[0]) # Extract docID
@@ -221,6 +223,9 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 		
 		#============================ Write index to block ===========================#
 		if rep_nbr% DOCS_PER_BLOCK == DOCS_PER_BLOCK -1 :
+			print "\nINDEXING BLOCK TIME"
+			print time.time()-st
+			t = time.time()
 			block_size +=1
 			block_number = rep_nbr/ DOCS_PER_BLOCK
 			print "WRITE BLOCK "+str(block_number)
@@ -235,6 +240,8 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 
 			uni_postings = []
 			tuple_postings = []
+			print time.time() -t
+			st = time.time()
 
 
 if rep_nbr% DOCS_PER_BLOCK != DOCS_PER_BLOCK -1 :
@@ -252,10 +259,10 @@ if rep_nbr% DOCS_PER_BLOCK != DOCS_PER_BLOCK -1 :
 	uni_postings = None
 	tuple_postings = None
 
-print "END INDEXING"
+print "\nINDEXING TIME"
 print (time.time() -s)
 #============================= Merge blocks in one file (Part2)=======================#
-print "START MERGING"
+print "\nSTART MERGING"
 
 #FIXME--DELETE
 print "INITIALIZATION"
@@ -271,15 +278,18 @@ for postName in block_posts_files:
 
 # list and sort all terms for each dictionnary
 block_terms =[]
+index_block = []
+len_block = []
 for dic  in block_dictionnaries:
 	terms = dic.keys()
 	terms.sort()
 	block_terms.append(terms)
+	index_block.append(0)
+	len_block.append(len(terms)) 
 
 #FIXME--DELETE
 tot = time.time()-start
 print tot
-print "MERGE LOOP"
 start = time.time()
 
 # Merge
@@ -291,12 +301,13 @@ with open(output_file_postings,"w") as mergedPost:
 		
 		#identifie minimum term
 		for idx in range(block_size):
-			if not block_terms[idx]:
+			i = index_block[idx]
+			if i>=len_block[idx]:
 				continue
-			if  termMin == None or block_terms[idx][0] < termMin:
-				termMin = block_terms[idx][0]
+			if  termMin == None or block_terms[idx][i] < termMin:
+				termMin = block_terms[idx][i]
 				min_ids = [idx]
-			elif block_terms[idx][0] == termMin:
+			elif block_terms[idx][i] == termMin:
 				min_ids.append(idx)
 				
 		
@@ -318,12 +329,14 @@ with open(output_file_postings,"w") as mergedPost:
 		for idx in min_ids:
 			#read postList
 			posting_list = post_files[idx].readline()
+			
 			if posting_list[-1] == "\n":
 				posting_list = posting_list[:-1]
+			
 			final_posting+= posting_list
 			
 			#update used term
-			block_terms[idx].pop(0)
+			index_block[idx] += 1
 			
 		#write in final file
 		mergedPost.write(final_posting+"\n")
@@ -331,8 +344,7 @@ with open(output_file_postings,"w") as mergedPost:
 #FIXME--DELETE
 print "\nMERGE TIME"
 print time.time()-start
-print "Total TIMe"
-print time.time()-s
+
 
 
 #close files
@@ -347,3 +359,5 @@ with open(output_file_dictionary,"w") as outfile_dict:
 	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
 
 print "COMPLETE"
+print "Total TIME"
+print time.time()-s

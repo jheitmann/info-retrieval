@@ -7,6 +7,7 @@ import linecache
 import tempfile
 import math
 import csv
+import time
 try:
    import cPickle as pickle
 except:
@@ -80,12 +81,13 @@ Every file with a docID in documents is opened and read, its words are first pro
 by the nltk tokenizer and second by the stem_and_casefold(word_to_process) function, 
 which yields a reduced form of the word.
 """
+st = time.time()
 with open(input_directory, 'rb') as csvfile: # Scan all the documents
 
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain
 	for rep_nbr, report in enumerate(law_reports):
-		if rep_nbr == 100:
+		if rep_nbr == 1200:
 			break # For testing purposes
 
 		docID = int(report[0]) # Extract docID
@@ -182,3 +184,5 @@ with open(output_file_postings, 'w') as outfile_post, open(output_file_dictionar
 	pickle.dump(dictionary,outfile_dict)
 	# Final length is obtained after computing the square root of the previous value
 	pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
+
+print time.time() -st
