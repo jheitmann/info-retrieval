@@ -210,7 +210,7 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 		all_words = uni_words + bi_words + tri_words
 		
 		
-		for word_idx, reduced_word in enumerate(all_words):
+		for word_idx, reduced_word in enumerate(uni_words):
 			dictionary.setdefault(reduced_word,0)
 			term_frequency = 1
 			
