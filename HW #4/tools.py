@@ -151,11 +151,19 @@ def top_k(scores):
     A = scores.items()
     build_max_heap(A)
     result = ''
-    k = 10
+    k = 100
     if len(A) < k:
         k = len(A)
     for i in range(k):
         result += str(extract_max(A)) if result == '' else ' '+str(extract_max(A))
+    return result
+
+def top(scores):
+    A = scores.items()
+    build_max_heap(A)
+    result = ''
+    for i in range(len(A)):
+        result += str(extract_max(A)) if result == '' else ' ' + str(extract_max(A))
     return result
 
 def extract_min(A):
