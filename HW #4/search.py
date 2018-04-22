@@ -19,7 +19,7 @@ BETA = 0.2
 N_RELEVANT=3
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
     relevants = cosine_score(query,postings, dictionary, doc_info,N)
-    print relevants
+    #print relevants
     relevants = relevants.split()[:N_RELEVANT]
     n_r = len(relevants)
     new_query = {}
@@ -44,7 +44,7 @@ def rocchio_algorithm(query,postings, dictionary, doc_info,N):
 
 def query_expansion(query):
     query_expanded = []
-    print("Query before expansion : "+' '.join(query))
+    #print("Query before expansion : "+' '.join(query))
     for term in query:
         hypernym = ""
         synsets = wn.synsets(term.lower())
@@ -55,7 +55,7 @@ def query_expansion(query):
         query_expanded.append(term)
         if hypernym != "":
             query_expanded.append(hypernym)
-    print("Query after expansion : "+' '.join(query_expanded))
+    #print("Query after expansion : "+' '.join(query_expanded))
     return query_expanded
 
 # return whether a given query (in a list format) is boolean
@@ -95,7 +95,7 @@ def and_op(postings1, postings2):
 def evaluate_boolean_query(query, dictionary, postings):
     parsed_query = parse_boolean_query(query)
     posting_list = fetch_posting_list(parsed_query[0], dictionary, postings)
-    for i in range(1, len(query) - 1):
+    for i in range(1, len(parsed_query)):
         posting_list_right = fetch_posting_list(parsed_query[i], dictionary, postings)
         posting_list = and_op(posting_list, posting_list_right)
     return posting_list
@@ -113,17 +113,19 @@ def parse_boolean_query(query):
             phrase = term[1:]
         elif term.endswith('"'):
             between_quotes = False
-            phrase += " "+term[:-1]
+            phrase += " " + term[:-1]
             parsed_query.append(tokenize(phrase))
         else:
             if between_quotes == True:
-                phrase += " "+term
+                phrase += " " + term
             elif term != 'AND':
-                parsed_query.append(tokenize(term))
+                parsed_query.append(stem_and_casefold(term))
+    print(parsed_query)
     return parsed_query
 
+
 def tokenize(phrase):
-    terms = nltk.word_tokenize(phrase)
+    terms = phrase.split(' ')
     return ' '.join([stem_and_casefold(term) for term in terms])
 
 """
@@ -145,7 +147,7 @@ def cosine_score(query, postings, dictionary, doc_info, N):
     for document in scores:
         scores[document] = scores[document] / doc_info[document][0]
 
-    return top_k(scores)
+    return top(scores)
 
 """
     returns a map from the terms in the query given in parameter to their corresponding weights in the query (tfxidf)
@@ -171,6 +173,7 @@ def compute_w_t_q(query, dictionary, N):
 """
 def fetch_posting_list(term, dictionary, postings):
     if term in dictionary:
+        print(term)
         offset = dictionary[term][1]
         postings.seek(offset)
         posting_list = Postings(postings.readline())
@@ -208,15 +211,15 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         output.write(result)
 
     else:
-        prepared_query = [tokenize(term) for term in query]
-
+        prepared_query = query_expansion(query)
+        prepared_query = [stem_and_casefold(term) for term in prepared_query]
+        #prepared_query = tokenize(query)
         #uncomment for query expansion using synonyms
-        #prepared_query = query_expansion(prepared_query)
-        
         N = len(doc_info) #Already defined
         prepared_query = compute_w_t_q(prepared_query, dictionary, N)
-        
-        expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
+
+        expanded_query = prepared_query
+        #expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
         
         output.write(cosine_score(expanded_query, postings, dictionary, doc_info,N))
 
