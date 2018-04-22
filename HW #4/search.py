@@ -105,19 +105,28 @@ def number_of_terms_in_phrase(phrase):
 
 def parse_boolean_query(query):
     parsed_query = []
+    between_quotes = False
+    phrase = ""
     for term in query:
         if term.startswith('"'):
-            parsed_query.append(stem_and_casefold(term[1:]))
+            between_quotes = True
+            phrase = term[1:]
         elif term.endswith('"'):
-            parsed_query.append(stem_and_casefold(term[:-1]))
-        elif term != 'AND':
+            between_quotes = False
+            phrase += " " + term[:-1]
+            parsed_query.append(tokenize(phrase))
+        else:
+            if between_quotes == True:
+                phrase += " " + term
+            elif term != 'AND':
                 parsed_query.append(stem_and_casefold(term))
     print(parsed_query)
     return parsed_query
 
-#def tokenize(phrase):
-#    terms = nltk.word_tokenize(phrase)
-#    return ' '.join([stem_and_casefold(term) for term in terms])
+
+def tokenize(phrase):
+    terms = phrase.split(' ')
+    return ' '.join([stem_and_casefold(term) for term in terms])
 
 """
     Helper function that finds the top 10 documents based on the cosine similarity based on the pseudo code provided
@@ -164,6 +173,7 @@ def compute_w_t_q(query, dictionary, N):
 """
 def fetch_posting_list(term, dictionary, postings):
     if term in dictionary:
+        print(term)
         offset = dictionary[term][1]
         postings.seek(offset)
         posting_list = Postings(postings.readline())
