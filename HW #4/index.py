@@ -90,7 +90,7 @@ block_posts_files=[]
 
 
 #===================== update the top N most frequent term of a doc===========#
-stopWords = set(stopwords.words('english'))
+stopWords = set(map(stem_and_casefold ,stopwords.words('english')))
 def update_infos(docid,reduced_word,tf):
 	global stopWords
 	global doc_infos
