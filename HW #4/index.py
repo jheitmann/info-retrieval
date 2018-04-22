@@ -180,20 +180,26 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain (first line contains tags)
 	for rep_nbr, report in enumerate(law_reports):
-		#if rep_nbr == 250:
-			#break # For testing purposes
-		
+		#if rep_nbr == 2:
+		#	break # For testing purposes
+
 		
 		docID = int(report[0]) # Extract docID
 		doc_infos[docID] = [0,report[4],[]]
 		
 		#print("Report being processed: " + str(docID))
+		title = report[1].decode('UTF8').encode('ASCII', "ignore")  # Extract content, encode to ASCII
 		content = report[2].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
-		
+		date =  report[3].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
+		court = report[4].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
 		
 		uni_words=[]
-		tokens = nltk.word_tokenize(content)
-		
+		#tokens = nltk.word_tokenize(content)
+		content = title + " " + content + " " + date + " " + court
+		spans = nltk.tokenize.WhitespaceTokenizer().span_tokenize(content)
+		# Yield the relevant slice of the input string representing each individual token in the sequence
+		tokens = [content[begin: end] for (begin, end) in spans]
+
 		for token in tokens:
 			uni_words.append(stem_and_casefold(token))
 		
