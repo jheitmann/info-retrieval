@@ -147,11 +147,10 @@ def extract_max(A):
     return max
 
 
-def top_k(scores):
+def top_k(scores,k):
     A = scores.items()
     build_max_heap(A)
     result = ''
-    k = 100
     if len(A) < k:
         k = len(A)
     for i in range(k):

@@ -50,13 +50,13 @@ csv.field_size_limit(sys.maxsize) # Explain
 #documents = sorted(map(int, listdir(input_directory))) # Change those
 # Total number of documents
 """ 
-Given a document with docID N, doc_infos[N]=(lenght, court, top N most coomon terms)
+Given a document with docID N, doc_infos[id]=(lenght, court, top N most coomon terms)
 length[N] stores its length, as described in the lecture
 notes, in order to do length normalization.
 """
 doc_infos = {}
 
-TERM_SAVED = 10
+TERM_SAVED = 50
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
 (word: doc_frequency). Part 3 then adds to the value of a (key,value) tupple the 
@@ -91,6 +91,7 @@ block_posts_files=[]
 
 
 #===================== update the top N most frequent term of a doc===========#
+TOO_COMMON_DF = 5000
 stopWords = set(map(stem_and_casefold ,stopwords.words('english')))
 def update_infos(docid,reduced_word,tf):
 	global stopWords
@@ -148,7 +149,7 @@ def write_block(n):
 					weight = 1 + math.log10(tf)
 					docid = get_docID(next_node)
 					doc_infos[docid][0] =doc_infos[docid][0]+ weight*weight # tf-idf square 
-					update_infos(docid,reduced_word,tf)
+					#update_infos(docid,reduced_word,tf)
 
 				dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
 				outfile_post.write(next_line)
@@ -182,8 +183,6 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	law_reports.next() # Explain (first line contains tags)
 	for rep_nbr, report in enumerate(law_reports):
 
-		if rep_nbr == 2:
-			break;
 		docID = int(report[0]) # Extract docID
 		doc_infos[docID] = [0,report[4],[]]
 		
@@ -206,17 +205,15 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 		uni_words = [stem_and_casefold(term) for term in uni_words]
 		#print(uni_words)
 		
-		#uni_words = map(stem_and_casefold, nltk.word_tokenize(content)) # Tokenized, then stemming/casefolding
+		
+		#bi_words = map(lambda t: t[0] + " " + t[1], zip(uni_words,uni_words[1:])) # add function
 		
 		
-		bi_words = map(lambda t: t[0] + " " + t[1], zip(uni_words,uni_words[1:])) # add function
-		
-		
-		tri_words = map(lambda t: t[0] + " " + t[1] + " " + t[2], zip(uni_words,uni_words[1:],uni_words[2:])) # add function
+		#tri_words = map(lambda t: t[0] + " " + t[1] + " " + t[2], zip(uni_words,uni_words[1:],uni_words[2:])) # add function
 		
 		
 		#print("First words of the report " + ", ".join(words[:10]) + '\n')
-		all_words = uni_words + bi_words + tri_words
+		#all_words = uni_words + bi_words + tri_words
 		
 		
 		for word_idx, reduced_word in enumerate(uni_words):
@@ -228,23 +225,23 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 				new_line = new_node(docID) + '\n' 
 
 				# Append this newly created posting list to posting-list-file
-				if word_idx < len(uni_words):
-					uni_wnbr[reduced_word] = uni_size
-					uni_postings.append(new_line)
-					uni_size += 1
-				else:
-					tuple_wnbr[reduced_word] = tuple_size
-					tuple_postings.append(new_line)
-					tuple_size += 1
+				#if word_idx < len(uni_words):
+				uni_wnbr[reduced_word] = uni_size
+				uni_postings.append(new_line)
+				uni_size += 1
+				#else:
+				#	tuple_wnbr[reduced_word] = tuple_size
+				#	tuple_postings.append(new_line)
+				#	tuple_size += 1
 
 				dictionary[reduced_word] += 1 # doc_frequency updated 
 			else: # reduced_word already in index
-				if word_idx < len(uni_words):
-					line_number = uni_wnbr[reduced_word] 
-					line = uni_postings[line_number]
-				else:
-					line_number = tuple_wnbr[reduced_word]
-					line = tuple_postings[line_number]
+				#if word_idx < len(uni_words):
+				line_number = uni_wnbr[reduced_word] 
+				line = uni_postings[line_number]
+				#else:
+				#	line_number = tuple_wnbr[reduced_word]
+				#	line = tuple_postings[line_number]
 				"""
 				Using linecache, lines start at 1 (not at 0)
 				We need to clear the cache before loading a line, so that it includes
@@ -266,10 +263,10 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 					new_line = posting_list.to_string() + new_node(docID) + '\n'
 					dictionary[reduced_word] += 1 # doc_frequency updated
 
-				if word_idx < len(uni_words):
-					uni_postings[line_number] = new_line
-				else:
-					tuple_postings[line_number] = new_line
+				#if word_idx < len(uni_words):
+				uni_postings[line_number] = new_line
+				#else:
+				#	tuple_postings[line_number] = new_line
 					
 		
 		#============================ Write index to block ===========================#
@@ -374,6 +371,10 @@ with open(output_file_postings,"w") as mergedPost:
 		#add in final dic
 		dictionary[termMin] = (df,mergedPost.tell())
 		
+		#if df > TOO_COMMON_DF add term to stop_words
+		if df>=TOO_COMMON_DF:
+			print termMin
+			stopWords.add(termMin)
 		
 		#write all post in mergedPost
 		final_posting = ""
@@ -396,14 +397,33 @@ with open(output_file_postings,"w") as mergedPost:
 print "\nMERGE TIME"
 print time.time()-start
 
-print "WRITE DICO TIME"
-temp = time.time()
 
 #close files
 for f in post_files:
 	f.close()
 for fname in block_posts_files:
 	os.remove(fname)
+
+#======= Create a vector with the most commons words for each documents===============#
+print "CREATE VECTORS TIME"
+temp = time.time()
+
+with open(output_file_postings,"r") as mergedPost:
+	for term in dictionary:
+		offset = dictionary[term][1]
+		mergedPost.seek(offset)
+		posting_list = Postings(mergedPost.readline())
+		for pair in posting_list:
+			docid = get_docID(pair)
+			tf = get_tf(pair)
+			update_infos(docid,term,tf)
+
+
+
+print time.time() -temp
+#============================= Write Dictionnary file ================================#
+print "WRITE DICO TIME"
+temp = time.time()
 
 with open(output_file_dictionary,"w") as outfile_dict:
 	pickle.dump(dictionary,outfile_dict)

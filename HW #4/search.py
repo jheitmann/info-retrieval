@@ -14,8 +14,8 @@ import time
 from math import log10
 from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
-ALPHA = 0.8
-BETA = 0.2
+ALPHA = 0.01
+BETA = 1
 N_RELEVANT=3
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
     relevants = cosine_score(query,postings, dictionary, doc_info,N)
@@ -147,7 +147,7 @@ def cosine_score(query, postings, dictionary, doc_info, N):
     for document in scores:
         scores[document] = scores[document] / doc_info[document][0]
 
-    return top(scores)
+    return top_k(scores,100)
 
 """
     returns a map from the terms in the query given in parameter to their corresponding weights in the query (tfxidf)
@@ -158,7 +158,7 @@ def compute_w_t_q(query, dictionary, N):
     for term in query:
         tf[term] = tf.get(term, 0) + 1
 
-    # PHASE 2 : for each term, compute the log TF * IDF score.
+    # PHASE 2 : for each term, compute the log TF sscore.
     w_t_q = dict()
     for term in tf:
         w_t_q[term] = 0
@@ -173,7 +173,6 @@ def compute_w_t_q(query, dictionary, N):
 """
 def fetch_posting_list(term, dictionary, postings):
     if term in dictionary:
-        print(term)
         offset = dictionary[term][1]
         postings.seek(offset)
         posting_list = Postings(postings.readline())
@@ -211,7 +210,11 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         output.write(result)
 
     else:
+        print "\nquery"
+        print " ".join(query)
         prepared_query = query_expansion(query)
+        print "\nexpanded"
+        print " ".join(prepared_query)
         prepared_query = [stem_and_casefold(term) for term in prepared_query]
         #prepared_query = tokenize(query)
         #uncomment for query expansion using synonyms
@@ -219,9 +222,12 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         prepared_query = compute_w_t_q(prepared_query, dictionary, N)
 
         expanded_query = prepared_query
-        #expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
-        
+        expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
+        print "\nrocchio"
+        print expanded_query
         output.write(cosine_score(expanded_query, postings, dictionary, doc_info,N))
+        print ""
+        print ""
 
     postings.close()
     output.close()
