@@ -14,9 +14,9 @@ import time
 from math import log10
 from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
-ALPHA = 0.01
-BETA = 1
-N_RELEVANT=3
+ALPHA = 0.7
+BETA = 0.3
+N_RELEVANT=10
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
     relevants = cosine_score(query,postings, dictionary, doc_info,N)
     #print relevants
