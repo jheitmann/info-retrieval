@@ -222,8 +222,10 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         result.sort()
         
         outResult = " ".join({doc for sc,doc in result})
-        
-        output.write(outResult)
+        if node is None:
+            output.write(top(scores))
+        else:
+            output.write(outResult)
         
 
     else:
