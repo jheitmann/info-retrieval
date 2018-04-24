@@ -205,7 +205,7 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
     
     if(is_boolean_query(query)):
         
-        query = query_expansion(query)
+        #query = query_expansion(query)
         resulting_posting_list = evaluate_boolean_query(query, dictionary, postings)
 
         node = resulting_posting_list.next_node()
