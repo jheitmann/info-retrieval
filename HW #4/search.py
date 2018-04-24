@@ -148,7 +148,7 @@ def cosine_score(query, postings, dictionary, doc_info, N):
         scores[document] = scores[document] / doc_info[document][0]
     
     #filter bad scores
-    scores = {k:v for k,v in scores.iteritems() if v>THRESHOLD}
+    #scores = {k:v for k,v in scores.iteritems() if v>THRESHOLD}
 
     return top(scores)
 
