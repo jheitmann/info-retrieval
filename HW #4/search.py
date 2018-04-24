@@ -18,7 +18,7 @@ ALPHA = 0.9
 BETA = 0.1
 N_RELEVANT=5
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
-    relevants = cosine_score(query,postings, dictionary, doc_info,N)
+    relevants = top(cosine_score(query,postings, dictionary, doc_info,N))
     relevants = relevants.split()[:N_RELEVANT]
     n_r = len(relevants)
     new_query = {}
@@ -68,7 +68,7 @@ def is_boolean_query(query):
 
 def read_query_from_file(queries_file_name):
     query_file = open(queries_file_name, "r")
-    query = query_file.readline()[:-1].split()
+    query = query_file.readline().split()
     query_file.close()
     return query
 
@@ -149,7 +149,7 @@ def cosine_score(query, postings, dictionary, doc_info, N):
     #filter bad scores
     #scores = {k:v for k,v in scores.iteritems() if v>THRESHOLD}
 
-    return top(scores)
+    return scores
 
 """
     returns a map from the terms in the query given in parameter to their corresponding weights in the query (tfxidf)
@@ -200,16 +200,31 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
     postings = open(postings_file_name, "r")
     query = read_query_from_file(queries_file_name)
 
+    #Already defined
+    N = len(doc_info)
+    
     if(is_boolean_query(query)):
+        
         query = query_expansion(query)
         resulting_posting_list = evaluate_boolean_query(query, dictionary, postings)
-        result = ""
+
         node = resulting_posting_list.next_node()
+        
+        prepared_query = compute_w_t_q(" ".join(query), dictionary, N)
+        scores = cosine_score(prepared_query,postings, dictionary, doc_info,N)
+        
+        result = []
         while(node is not None):
-            result = result + " " + str(get_docID(node))
+            docid = get_docID(node)
+            result.append((scores[docid],docid))
             node = resulting_posting_list.next_node()
-        if result != "":
-            result = result[1:]
+        
+        result.sort()
+        
+        outResult = " ".join({doc for sc,doc in result})
+        
+        output.write(outResult)
+        
 
     else:
         print "\nquery"
@@ -220,14 +235,15 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         prepared_query = [stem_and_casefold(term) for term in prepared_query]
         #prepared_query = tokenize(query)
         #uncomment for query expansion using synonyms
-        N = len(doc_info) #Already defined
+        
         prepared_query = compute_w_t_q(prepared_query, dictionary, N)
 
         expanded_query = prepared_query
         expanded_query = rocchio_algorithm(prepared_query,postings, dictionary, doc_info,N)
         print "\nrocchio"
         print expanded_query
-        output.write(cosine_score(expanded_query, postings, dictionary, doc_info,N))
+        scores = cosine_score(expanded_query, postings, dictionary, doc_info,N)
+        output.write(top(scores))
         print ""
         print ""
 
