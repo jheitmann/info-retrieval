@@ -14,9 +14,9 @@ import time
 from math import log10
 from nltk.corpus import wordnet as wn #TODO how to correctly import for submission ?
 
-ALPHA = 0.7
-BETA = 0.3
-N_RELEVANT=10
+ALPHA = 0.9
+BETA = 0.1
+N_RELEVANT=5
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
     relevants = cosine_score(query,postings, dictionary, doc_info,N)
     relevants = relevants.split()[:N_RELEVANT]
@@ -131,7 +131,6 @@ def tokenize(phrase):
     Helper function that finds the top 10 documents based on the cosine similarity based on the pseudo code provided
     in class.
 """
-THRESHOLD = 0.01
 def cosine_score(query, postings, dictionary, doc_info, N):
 
     scores = dict()
@@ -202,6 +201,7 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
     query = read_query_from_file(queries_file_name)
 
     if(is_boolean_query(query)):
+        query = query_expansion(query)
         resulting_posting_list = evaluate_boolean_query(query, dictionary, postings)
         result = ""
         node = resulting_posting_list.next_node()
