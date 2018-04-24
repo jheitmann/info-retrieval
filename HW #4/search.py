@@ -19,7 +19,6 @@ BETA = 0.3
 N_RELEVANT=10
 def rocchio_algorithm(query,postings, dictionary, doc_info,N):
     relevants = cosine_score(query,postings, dictionary, doc_info,N)
-    #print relevants
     relevants = relevants.split()[:N_RELEVANT]
     n_r = len(relevants)
     new_query = {}
@@ -132,6 +131,7 @@ def tokenize(phrase):
     Helper function that finds the top 10 documents based on the cosine similarity based on the pseudo code provided
     in class.
 """
+THRESHOLD = 0.01
 def cosine_score(query, postings, dictionary, doc_info, N):
 
     scores = dict()
@@ -146,8 +146,11 @@ def cosine_score(query, postings, dictionary, doc_info, N):
                 scores[document] = scores.get(document, 0) + w_t_d * w_t_q*idf # use td_weight
     for document in scores:
         scores[document] = scores[document] / doc_info[document][0]
+    
+    #filter bad scores
+    scores = {k:v for k,v in scores.iteritems() if v>THRESHOLD}
 
-    return top_k(scores,100)
+    return top(scores)
 
 """
     returns a map from the terms in the query given in parameter to their corresponding weights in the query (tfxidf)
@@ -207,7 +210,6 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
             node = resulting_posting_list.next_node()
         if result != "":
             result = result[1:]
-        output.write(result)
 
     else:
         print "\nquery"
