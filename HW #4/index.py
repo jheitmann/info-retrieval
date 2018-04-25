@@ -47,15 +47,15 @@ if input_directory == None or output_file_postings == None or output_file_dictio
 #augment the size that can be read by csv
 csv.field_size_limit(sys.maxsize)
 
-open("tmp_bi_post",'w').close() # Create an empty file
+#open("tmp_bi_post",'w').close() # Create an empty file
 
 """ 
 Given a document with docID id, doc_infos[id]=(lenght, court, vector of top TERM_SAVED
  most commons terms)
 where:
-	-the lenght is the lenght of the the vector for the document
+	-the length is the length of the the vector for the document
 	-the court of the document
-	- an approximation vector of the document containing the terms specific to the document
+	-an approximation vector of the document containing the terms specific to the document
 
 TERM_SAVED : number of terms to be conserved in the approximated vector
 """
@@ -83,8 +83,12 @@ mapping is the following: (word: (doc_frequency, offset)).
 """
 dictionary = {}
 
-# TODO: explain
-bi_dictionary = {} # added
+"""
+Allows handling bi-grams, a mapping (term1,docID) -> term2, where term2 < term1,
+and docID is the document where "term1 term2" appears
+
+bi_dictionary = {} 
+"""
 
 """
 (word: number) is a bijective mapping, if word is the ith term encountered during the
@@ -110,7 +114,7 @@ DOCS_PER_BLOCK = 500
 block_size = 0
 block_dictionnaries =[]
 block_posts_files=[]
-block_bi_posts_files=[] # added
+#block_bi_posts_files=[] 
 
 
 #===================== update the top N most frequent term of a doc===========#
@@ -135,22 +139,22 @@ def update_infos(docid,reduced_word,tf):
 What remains to be done is to compute the length of every document (square root of the 
 sum of tf-idf score squares, computed for all terms in the document), while also 
 updating the dictionary with the offset in the posting-list-file that corresponds to a 
-certain word. FIXME Finally, we serialize both dictionary and length. FIXME
+certain word. 
 """
 
 def write_block(n):
 	#name the blocks files
 	postName = "block"+str(n)
-	bi_post_name = "bi_block"+str(n)
-	with open(postName, 'w') as outfile_post, open(bi_post_name, 'w') as outfile_bi_post: #,open(dicName, 'w') as outfile_dict:
+	#bi_post_name = "bi_block"+str(n)
+	with open(postName, 'w') as outfile_post: #, open(bi_post_name, 'w') as outfile_bi_post: 
 		global uni_wnbr
 		global uni_postings
 		global doc_infos
 		global dictionary
-		global bi_dictionary # added
+		#global bi_dictionary 
 		global block_dictionnaries
 		global block_posts_files
-		global block_bi_posts_files # added
+		#global block_bi_posts_files 
 
 		#set the offset and sort all the terms
 		offset = 0
@@ -180,8 +184,8 @@ def write_block(n):
 			outfile_post.write(next_line)
 			offset += len(next_line)
 
-		
-		#TO COMMENT
+		"""
+		#set the offset and sort all the terms
 		offset = 0
 		sorted_bi_grams = bi_dictionary.keys()
 		sorted_bi_grams.sort()
@@ -190,20 +194,23 @@ def write_block(n):
 		for index, term_doc in enumerate(sorted_bi_grams):
 			t1 = term_doc[0]
 			docID = term_doc[1]
+			# Append all nodes [docID | hash(t2)] to the list
 			for t2 in bi_dictionary[(t1,docID)]:
 				next_line += node_with_hash(docID,t2) 
+			# Write this list to file, set offset value of t1
 			if index == (len(sorted_bi_grams)-1) or t1 != sorted_bi_grams[index+1][0]:
 				dictionary[t1] = (dictionary[t1][0], dictionary[t1][1], offset)
 				next_line += '\n'
 				outfile_bi_post.write(next_line)
 				offset += len(next_line)
 				next_line = ""
+		"""
 
 		
 		#save the dictionnary and the block file name
 		block_dictionnaries.append(dictionary)
 		block_posts_files.append(postName)
-		block_bi_posts_files.append(bi_post_name)
+		#block_bi_posts_files.append(bi_post_name)
 
 
 #============================= Create the index (Part 1) =============================#
@@ -243,7 +250,7 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 		content = title + " " + content + " " + date + " " + court
 		
 		#list of all terms in the document
-		uni_words=[]
+		uni_words=[] 
 		
 		#tokenize content and stem all the words
 		tokenizer = RegexpTokenizer(r'\w+')
@@ -289,9 +296,12 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 				uni_postings[line_number] = new_line
 		
 		"""
-		BI WORDS
+		BI-WORDS
+		Iterate through all the bi-grams obtained from uni-word, and add an entry to bi_dictionary:
+		if (t1,t2) is a bigram, set either bi_dictionary[(t1,docID)] = t2 or bi_dictionary[(t2,docID)]
+		= t1, depending on whether or not t1 < t2. 
 		"""
-		# TODO: explain
+		"""
 		bi_words = zip(uni_words,uni_words[1:])
 		for t1,t2 in bi_words:
 			if t1 < t2:
@@ -300,6 +310,7 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 			else:
 				bi_dictionary.setdefault((t2,docID),set())
 				bi_dictionary[(t2,docID)].add(t1)
+		"""
 
 		
 		"""
@@ -322,7 +333,7 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 			
 			#free memory
 			dictionary = {}
-			bi_dictionary = {}
+			#bi_dictionary = {}
 			uni_wnbr = BidirectionalDict()
 			uni_size = 0
 			uni_postings = []
@@ -360,14 +371,16 @@ start = time.time()
 
 dictionary = {}
 post_files = []
-bi_post_files = []
+#bi_post_files = []
 
 # open blocks files
 for postName in block_posts_files:
 	post_files.append(open(postName,'r'))
 
+"""
 for bi_post_name in block_bi_posts_files:
 	bi_post_files.append(open(bi_post_name,'r'))
+"""
 
 # list and sort all terms for each dictionnary
 block_terms =[]
@@ -388,7 +401,7 @@ start = time.time()
 """
  MERGE
 """
-with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as merged_bi_post:
+with open(output_file_postings,"w") as mergedPost:#, open("tmp_bi_post", 'r+') as merged_bi_post:
 	while True:
 		#initialize
 		termMin = None
@@ -425,7 +438,7 @@ with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as 
 		
 		#write all post in mergedPost
 		final_posting = ""
-		final_bi_posting = ""
+		#final_bi_posting = ""
 		for idx in min_ids:
 			#read postList
 			posting_list = post_files[idx].readline()
@@ -435,6 +448,7 @@ with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as 
 			#concatene the posting list to the final list
 			final_posting+= posting_list
 
+			"""
 			if len(block_dictionnaries[idx][termMin]) == 3:
 				bi_posting_list = bi_post_files[idx].readline()
 
@@ -442,23 +456,28 @@ with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as 
 					bi_posting_list = bi_posting_list[:-1]
 			
 				final_bi_posting+= bi_posting_list
+			"""
 
 			#update used term
 			index_block[idx] += 1
 			
-		#write in final file
 		mergedPost.write(final_posting+"\n")
+		# if final_bi_posting is not empty, write to file
+		"""
 		if len(final_bi_posting) > 0:
 			uni_wnbr[termMin] = uni_size
 			uni_size += 1
 			merged_bi_post.write(final_bi_posting+'\n')
+		"""
 
-	# TODO: explain
+	# appends the bi-gram lists to posting-list-file
+	"""
 	merged_bi_post.seek(0)
 	for index, line in enumerate(merged_bi_post):
 		term = uni_wnbr[index]
 		dictionary[term] = (dictionary[term][0],dictionary[term][1],mergedPost.tell())
 		mergedPost.write(line)
+	"""
 
 
 
@@ -469,13 +488,17 @@ print time.time()-start
 #close all files and remove them
 for f in post_files:
 	f.close()
+"""
 for bi_f in bi_post_files:
 	bi_f.close()
+"""
 for fname in block_posts_files:
 	os.remove(fname)
+"""
 for bi_fname in block_bi_posts_files:
 	os.remove(bi_fname)
-os.remove("tmp_bi_post")
+"""
+#os.remove("tmp_bi_post")
 
 #======= Create a vector with the most commons words for each documents===============#
 print "CREATE VECTORS TIME"

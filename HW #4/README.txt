@@ -1,5 +1,5 @@
 This is the README file for A0174724B-A0174723A-A0174721H's submission
-Emails: e0215426@u.nus.edu, e0215425@u.nus.edu and @u.nus.edu
+Emails: e0215426@u.nus.edu, e0215425@u.nus.edu and e0215423@u.nus.edu
 
 == Python Version ==
 
