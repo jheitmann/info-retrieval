@@ -44,21 +44,37 @@ if input_directory == None or output_file_postings == None or output_file_dictio
     usage()
     sys.exit(2)
 
-csv.field_size_limit(sys.maxsize) # Explain
+#augment the size that can be read by csv
+csv.field_size_limit(sys.maxsize)
 
 open("tmp_bi_post",'w').close() # Create an empty file
 
-# Sorted list of docIDs
-#documents = sorted(map(int, listdir(input_directory))) # Change those
-# Total number of documents
 """ 
-Given a document with docID N, doc_infos[id]=(lenght, court, top N most coomon terms)
-length[N] stores its length, as described in the lecture
-notes, in order to do length normalization.
+Given a document with docID id, doc_infos[id]=(lenght, court, vector of top TERM_SAVED
+ most commons terms)
+where:
+	-the lenght is the lenght of the the vector for the document
+	-the court of the document
+	- an approximation vector of the document containing the terms specific to the document
+
+TERM_SAVED : number of terms to be conserved in the approximated vector
 """
 doc_infos = {}
 
 TERM_SAVED = 50
+
+
+"""
+stops words variables
+TOO_COMMON_DF : if a word is in more than TOO_COMMON_DF documents we consider
+that the word is not representative for a document so we add it to stopWords
+
+stopWords : set of all ignored words when creating the approximation vector for a document
+"""
+TOO_COMMON_DF = 5000
+stopWords = set(map(stem_and_casefold ,stopwords.words('english')))
+
+
 """
 dictionary is our inverted index, in part 1 & 2 it contains the mapping 
 (word: doc_frequency). Part 3 then adds to the value of a (key,value) tuple the 
@@ -78,11 +94,18 @@ used to determine the line in the posting-list-file that corresponds to a given 
 and vice versa.
 """
 uni_wnbr = BidirectionalDict()
-
 uni_size = 0
-
 uni_postings = []
-#Blocks related variables
+
+"""
+Blocks related variables
+
+DOCK_PER_BLOCK : number of docuents to be indexed for each blocks
+block_size : number of blocks
+block_dictionnaries : list of dictionnaries, one for each block
+block_posts_files : contains the names of all blocks files
+block_bi_posts_files : contains the names of all blocks files for biword
+"""
 DOCS_PER_BLOCK = 500
 block_size = 0
 block_dictionnaries =[]
@@ -91,8 +114,11 @@ block_bi_posts_files=[] # added
 
 
 #===================== update the top N most frequent term of a doc===========#
-TOO_COMMON_DF = 5000
-stopWords = set(map(stem_and_casefold ,stopwords.words('english')))
+"""
+function that inserts a certain words into a heap 
+if this words is one of the top TERM_SAVED most commons term in the document
+and if the word is not a stop words.
+"""
 def update_infos(docid,reduced_word,tf):
 	global stopWords
 	global doc_infos
@@ -113,6 +139,7 @@ certain word. FIXME Finally, we serialize both dictionary and length. FIXME
 """
 
 def write_block(n):
+	#name the blocks files
 	postName = "block"+str(n)
 	bi_post_name = "bi_block"+str(n)
 	with open(postName, 'w') as outfile_post, open(bi_post_name, 'w') as outfile_bi_post: #,open(dicName, 'w') as outfile_dict:
@@ -125,27 +152,36 @@ def write_block(n):
 		global block_posts_files
 		global block_bi_posts_files # added
 
+		#set the offset and sort all the terms
 		offset = 0
 		sortedTerms = dictionary.keys()
 		sortedTerms.sort()
 
-		#for i, next_line in enumerate(uni_postings):
 		for reduced_word in sortedTerms:
+			
+			#get the index and the posting list
 			i = uni_wnbr[reduced_word]
 			next_line = uni_postings[i]
 			next_posting_list = Postings(next_line)
 
-			for next_node in next_posting_list: # Iterate over the (docID,term_frequency) pairs
+			#for elements in the posting list
+			for next_node in next_posting_list: 
+				
+				#get document id and compute weight
+				docid= get_docID(next_node)
 				tf = get_tf(next_node)
 				weight = 1 + math.log10(tf)
-				docid= get_docID(next_node)
-				doc_infos[docid][0] =doc_infos[docid][0]+ weight*weight # tf-idf square 
-				#update_infos(docID,reduced_word,tf)
+				
+				#add the weigth to the lenght of the document
+				doc_infos[docid][0] =doc_infos[docid][0]+ weight*weight # tf-idf square
 
+			#update the dictionnary with the offset and write the posting list
 			dictionary[reduced_word] = (dictionary[reduced_word], offset) # Update the dictionary
 			outfile_post.write(next_line)
 			offset += len(next_line)
 
+		
+		#TO COMMENT
 		offset = 0
 		sorted_bi_grams = bi_dictionary.keys()
 		sorted_bi_grams.sort()
@@ -163,12 +199,8 @@ def write_block(n):
 				offset += len(next_line)
 				next_line = ""
 
-		#pickle.dump(dictionary,outfile_dict)
-		# Final length is obtained after computing the square root of the previous value
-		#pickle.dump({docID: math.sqrt(score_acc) for docID, score_acc in length.items()}, outfile_dict) 
 		
-		
-		#save the dictionnary and lenghts
+		#save the dictionnary and the block file name
 		block_dictionnaries.append(dictionary)
 		block_posts_files.append(postName)
 		block_bi_posts_files.append(bi_post_name)
@@ -186,42 +218,43 @@ s = time.time()
 with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	
 	st = time.time()
+	
+	#open a reader for csv file
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
-	law_reports.next() # Explain (first line contains tags)
+	law_reports.next()
+	
+	
 	for rep_nbr, report in enumerate(law_reports):
 
 		docID = int(report[0]) # Extract docID
+		
+		#create an entry containing the informations of the document
+		#length =0
+		#court 
+		#empty vector
 		doc_infos[docID] = [0,report[4],[]]
 		
-		#print("Report being processed: " + str(docID))
-		title = report[1].decode('UTF8').encode('ASCII', "ignore")  # Extract content, encode to ASCII
-		content = report[2].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
-		date =  report[3].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
-		court = report[4].decode('UTF8').encode('ASCII',"ignore") # Extract content, encode to ASCII
+		# Extract content, encode to ASCII
+		title = report[1].decode('UTF8').encode('ASCII', "ignore")  
+		content = report[2].decode('UTF8').encode('ASCII',"ignore") 
+		date =  report[3].decode('UTF8').encode('ASCII',"ignore") 
+		court = report[4].decode('UTF8').encode('ASCII',"ignore") 
 		
-		uni_words=[]
-		#tokens = nltk.word_tokenize(content)
 		content = title + " " + content + " " + date + " " + court
-
-		#spans = nltk.tokenize.WhitespaceTokenizer().span_tokenize(content)
-		# Yield the relevant slice of the input string representing each individual token in the sequence
-		#tokens = [content[begin: end] for (begin, end) in spans]
-
+		
+		#list of all terms in the document
+		uni_words=[]
+		
+		#tokenize content and stem all the words
 		tokenizer = RegexpTokenizer(r'\w+')
 		uni_words = tokenizer.tokenize(content)
 		uni_words = [stem_and_casefold(term) for term in uni_words]
 		
-		# TODO: explain
-		bi_words = zip(uni_words,uni_words[1:])
-		for t1,t2 in bi_words:
-			if t1 < t2:
-				bi_dictionary.setdefault((t1,docID),set())
-				bi_dictionary[(t1,docID)].add(t2)
-			else:
-				bi_dictionary.setdefault((t2,docID),set())
-				bi_dictionary[(t2,docID)].add(t1)
 
-		
+		"""
+		 Index all the terms in the documents
+		 Create dictionnary and postings list
+		"""
 		for word_idx, reduced_word in enumerate(uni_words):
 			dictionary.setdefault(reduced_word,0)
 			term_frequency = 1
@@ -254,29 +287,55 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 					dictionary[reduced_word] += 1 # doc_frequency updated
 
 				uni_postings[line_number] = new_line
+		
+		"""
+		BI WORDS
+		"""
+		# TODO: explain
+		bi_words = zip(uni_words,uni_words[1:])
+		for t1,t2 in bi_words:
+			if t1 < t2:
+				bi_dictionary.setdefault((t1,docID),set())
+				bi_dictionary[(t1,docID)].add(t2)
+			else:
+				bi_dictionary.setdefault((t2,docID),set())
+				bi_dictionary[(t2,docID)].add(t1)
 
 		
-		#============================ Write index to block ===========================#
+		"""
+		If we have indexed DOCS_PER_BLOCK documents:
+			write the block
+			reinitialize all variables
+		"""
 		if rep_nbr% DOCS_PER_BLOCK == DOCS_PER_BLOCK -1 :
+			
+			#print time
 			print "\nINDEXING BLOCK TIME"
 			print time.time()-st
 			t = time.time()
+			print "WRITE BLOCK "+str(block_number)
+			
+			#update the block number and write the new block
 			block_size +=1
 			block_number = rep_nbr/ DOCS_PER_BLOCK
-			print "WRITE BLOCK "+str(block_number)
 			write_block(block_number)
 			
+			#free memory
 			dictionary = {}
 			bi_dictionary = {}
 			uni_wnbr = BidirectionalDict()
-
 			uni_size = 0
-
 			uni_postings = []
+			
+			
 			print time.time() -t
 			st = time.time()
 
-
+"""
+Once all the documents are indexed,
+if the last block contain at least one document:
+	write a last block
+"""
 if rep_nbr% DOCS_PER_BLOCK != DOCS_PER_BLOCK -1 :
 	block_size +=1
 	block_number = rep_nbr/ DOCS_PER_BLOCK
@@ -292,17 +351,18 @@ print "\nINDEXING TIME"
 print (time.time() -s)
 #============================= Merge blocks in one file (Part2)=======================#
 print "\nSTART MERGING"
-
-#FIXME--DELETE
 print "INITIALIZATION"
 start = time.time()
 
+"""
+ INITIALIZATION
+"""
 
 dictionary = {}
 post_files = []
 bi_post_files = []
 
-# open files
+# open blocks files
 for postName in block_posts_files:
 	post_files.append(open(postName,'r'))
 
@@ -320,12 +380,14 @@ for dic  in block_dictionnaries:
 	index_block.append(0)
 	len_block.append(len(terms)) 
 
-#FIXME--DELETE
+#timer
 tot = time.time()-start
 print tot
 start = time.time()
 
-# Merge
+"""
+ MERGE
+"""
 with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as merged_bi_post:
 	while True:
 		#initialize
@@ -344,7 +406,7 @@ with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as 
 				min_ids.append(idx)
 				
 		
-		#close if all dictionnary are finished
+		#close if there is no term left to merge
 		if termMin == None:
 			break
 		
@@ -367,10 +429,10 @@ with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as 
 		for idx in min_ids:
 			#read postList
 			posting_list = post_files[idx].readline()
-			
 			if posting_list[-1] == "\n":
 				posting_list = posting_list[:-1]
 			
+			#concatene the posting list to the final list
 			final_posting+= posting_list
 
 			if len(block_dictionnaries[idx][termMin]) == 3:
@@ -399,12 +461,12 @@ with open(output_file_postings,"w") as mergedPost, open("tmp_bi_post", 'r+') as 
 		mergedPost.write(line)
 
 
-#FIXME--DELETE
+
 print "\nMERGE TIME"
 print time.time()-start
 
 
-#close files
+#close all files and remove them
 for f in post_files:
 	f.close()
 for bi_f in bi_post_files:
@@ -414,10 +476,14 @@ for fname in block_posts_files:
 for bi_fname in block_bi_posts_files:
 	os.remove(bi_fname)
 os.remove("tmp_bi_post")
+
 #======= Create a vector with the most commons words for each documents===============#
 print "CREATE VECTORS TIME"
 temp = time.time()
-
+"""
+For all documents we create an approximated vector containing 
+the most commons term  of the document
+"""
 with open(output_file_postings,"r") as mergedPost:
 	for term in dictionary:
 		offset = dictionary[term][1]
@@ -435,10 +501,12 @@ print time.time() -temp
 print "WRITE DICO TIME"
 temp = time.time()
 
+"""
+Write the last dictionnary and documents informations in the dictionnary file
+"""
 with open(output_file_dictionary,"w") as outfile_dict:
 	pickle.dump(dictionary,outfile_dict)
-	# Final length is obtained after computing the square root of the previous value
-	#FIXME
+	
 	pickle.dump({docID: (math.sqrt(info[0]),info[1],info[2]) for docID, info in doc_infos.items()}, outfile_dict) 
 
 print time.time()-temp
