@@ -51,9 +51,9 @@ def query_expansion(query):
             hypernyms = synsets[0].hypernyms()
             if len(hypernyms) != 0:
                 hypernym = hypernyms[0].lemmas()[0].name().replace('_', ' ')
-        query_expanded.append(term)
+        query_expanded.append((term,3))
         if hypernym != "":
-            query_expanded.append(hypernym)
+            query_expanded.append((hypernym,1))
     #print("Query after expansion : "+' '.join(query_expanded))
     return query_expanded
 
@@ -108,16 +108,11 @@ def parse_boolean_query(query):
     phrase = ""
     for term in query:
         if term.startswith('"'):
-            between_quotes = True
-            phrase = term[1:]
+            parsed_query.append(stem_and_casefold(term[1:]))
         elif term.endswith('"'):
-            between_quotes = False
-            phrase += " " + term[:-1]
-            parsed_query.append(tokenize(phrase))
+            parsed_query.append(stem_and_casefold(term[:-1]))
         else:
-            if between_quotes == True:
-                phrase += " " + term
-            elif term != 'AND':
+            if term != 'AND':
                 parsed_query.append(stem_and_casefold(term))
     print(parsed_query)
     return parsed_query
@@ -157,8 +152,8 @@ def cosine_score(query, postings, dictionary, doc_info, N):
 def compute_w_t_q(query, dictionary, N):
     # PHASE 1 : count the number of occurrences of each term in the query (i.e compute the term frequency)
     tf = dict()
-    for term in query:
-        tf[term] = tf.get(term, 0) + 1
+    for term,w in query:
+        tf[term] = tf.get(term, 0) + w
 
     # PHASE 2 : for each term, compute the log TF sscore.
     w_t_q = dict()
@@ -205,12 +200,11 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
     
     if(is_boolean_query(query)):
         
-        #query = query_expansion(query)
         resulting_posting_list = evaluate_boolean_query(query, dictionary, postings)
 
         node = resulting_posting_list.next_node()
         
-        prepared_query = compute_w_t_q(" ".join(query), dictionary, N)
+        prepared_query = compute_w_t_q({(t,1)for t in  query}, dictionary, N)
         scores = cosine_score(prepared_query,postings, dictionary, doc_info,N)
         
         result = []
@@ -221,8 +215,8 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         
         result.sort()
         
-        outResult = " ".join({doc for sc,doc in result})
-        if node is None:
+        outResult = " ".join({str(doc) for sc,doc in result})
+        if not result:
             output.write(top(scores))
         else:
             output.write(outResult)
@@ -233,8 +227,8 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         print " ".join(query)
         prepared_query = query_expansion(query)
         print "\nexpanded"
-        print " ".join(prepared_query)
-        prepared_query = [stem_and_casefold(term) for term in prepared_query]
+        print prepared_query
+        prepared_query = [(stem_and_casefold(term),w) for term,w in prepared_query]
         #prepared_query = tokenize(query)
         #uncomment for query expansion using synonyms
         
