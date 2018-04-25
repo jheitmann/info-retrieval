@@ -6,6 +6,7 @@ import getopt
 import math
 import tempfile
 import nltk
+import hashlib
 from nltk.stem.porter import *
 
 ELEM_SIZE = 8  # Elem is either a docID or a term frequency
@@ -30,9 +31,21 @@ def unpack_string(s):
     return int(s, 16)
 
 
+# Returns a hexadecimal hash string of a given word
+def hash32(s):
+    hash_object = hashlib.sha1(s.encode())
+    hex_dig = hash_object.hexdigest()
+    return hex_dig[-ELEM_SIZE:]
+
+
 # Returns a new node, with term frequency set to 1
 def new_node(docID):
     return pack_bytes(docID, ELEM_SIZE) + pack_bytes(1, ELEM_SIZE)
+
+
+# Returns a new node, with a hashed string
+def node_with_hash(docID,s):
+    return pack_bytes(docID, ELEM_SIZE) + hash32(s)
 
 
 # Returns the docID of a node
@@ -42,6 +55,11 @@ def get_docID(node):
 
 # Returns the term frequency of a node
 def get_tf(node):
+    return unpack_string(node[ELEM_SIZE:])
+
+
+# Returns the node's 32-bit hash of a word
+def get_word_hash(node):
     return unpack_string(node[ELEM_SIZE:])
 
 
@@ -255,6 +273,9 @@ class Postings(object):
             return node
         else:
             return None
+
+    def is_empty(self):
+        return len(self.postings) == 0
 
     def to_string(self):
         return self.postings

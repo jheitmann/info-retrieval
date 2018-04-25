@@ -92,36 +92,65 @@ def and_op(postings1, postings2):
     return Postings(result)
 
 def evaluate_boolean_query(query, dictionary, postings):
-    parsed_query = parse_boolean_query(query)
-    posting_list = fetch_posting_list(parsed_query[0], dictionary, postings)
-    for i in range(1, len(parsed_query)):
-        posting_list_right = fetch_posting_list(parsed_query[i], dictionary, postings)
-        posting_list = and_op(posting_list, posting_list_right)
+    (single_query,phrase_query) = parse_boolean_query(query)
+    posting_list = Postings("")
+
+    for bi_gram in phrase_query:
+        tuple_ls = bi_gram.split()
+        t1 = tuple_ls[0]
+        t2 = tuple_ls[1]
+        posting_list_right = ""
+        for node in fetch_bi_posting_list(t1, dictionary, postings):
+            if unpack_string(hash32(t2)) == get_word_hash(node):
+                posting_list_right += node
+        if posting_list.is_empty():
+            posting_list = Postings(posting_list_right)
+        else:
+            posting_list = and_op(posting_list, Postings(posting_list_right))
+
+    for i in range(0, len(single_query)):
+        posting_list_right = fetch_posting_list(single_query[i], dictionary, postings)
+        if posting_list.is_empty():
+            posting_list = posting_list_right
+        else:
+            posting_list = and_op(posting_list, posting_list_right)
+
     return posting_list
 
 def number_of_terms_in_phrase(phrase):
     return len(phrase.split(' '))
 
 def parse_boolean_query(query):
-    parsed_query = []
+    single_query = []
+    phrase_query = []
     between_quotes = False
-    phrase = ""
+    phrase = []
     for term in query:
         if term.startswith('"'):
-            parsed_query.append(stem_and_casefold(term[1:]))
+            between_quotes = True
+            phrase.append(term[1:])
         elif term.endswith('"'):
-            parsed_query.append(stem_and_casefold(term[:-1]))
+            between_quotes = False
+            phrase.append(term[:-1])
+            bi_grams = zip(phrase,phrase[1:])
+            phrase_query += tokenize(bi_grams)
         else:
-            if term != 'AND':
-                parsed_query.append(stem_and_casefold(term))
-    print(parsed_query)
-    return parsed_query
+            if between_quotes == True:
+                phrase.append(term)
+            elif term != 'AND':
+                single_query.append(stem_and_casefold(term))
+    print(single_query + phrase_query)
+    return (single_query,phrase_query)
 
 
-def tokenize(phrase):
-    terms = phrase.split(' ')
-    return ' '.join([stem_and_casefold(term) for term in terms])
-
+def tokenize(bi_grams):
+    tokenized = []
+    for t1,t2 in bi_grams:
+        if t1 < t2:
+            tokenized.append(stem_and_casefold(t1) + ' ' + stem_and_casefold(t2))
+        else:
+            tokenized.append(stem_and_casefold(t2) + ' ' + stem_and_casefold(t1))
+    return tokenized
 """
     Helper function that finds the top 10 documents based on the cosine similarity based on the pseudo code provided
     in class.
@@ -177,6 +206,16 @@ def fetch_posting_list(term, dictionary, postings):
         posting_list = Postings("")
     return posting_list
 
+# TODO: explain
+def fetch_bi_posting_list(term, dictionary, postings):
+    if term in dictionary and len(dictionary[term]) == 3:
+        offset = dictionary[term][2]
+        postings.seek(offset)
+        posting_list = Postings(postings.readline())
+    else:
+        posting_list = Postings("")
+    return posting_list
+
 """
     Actual search function that finds the top k documents for each query and writes the results in a filte
 """
@@ -216,6 +255,7 @@ def search(dictionary_file_name, postings_file_name, queries_file_name, file_of_
         result.sort()
         
         outResult = " ".join({str(doc) for sc,doc in result})
+
         if not result:
             output.write(top(scores))
         else:
