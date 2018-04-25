@@ -5,7 +5,7 @@ import nltk
 import sys
 import getopt
 import math
-from tools_bi import *
+from tools import *
 try:
    import cPickle as pickle
 except:

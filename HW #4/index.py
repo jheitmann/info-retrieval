@@ -14,7 +14,7 @@ try:
 except:
    import pickle
 from os import listdir
-from tools_bi import *
+from tools import *
 from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
 
@@ -189,9 +189,6 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	law_reports = csv.reader(csvfile, delimiter=',', quotechar='"')
 	law_reports.next() # Explain (first line contains tags)
 	for rep_nbr, report in enumerate(law_reports):
-
-		if rep_nbr == 1000:
-			break
 
 		docID = int(report[0]) # Extract docID
 		doc_infos[docID] = [0,report[4],[]]
