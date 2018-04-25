@@ -8,13 +8,11 @@ this assignment.
 
 == General Notes about this assignment ==
 
-Give an overview of your program, describe the important algorithms/steps 
-in your program, and discuss your experiments in general.  A few paragraphs 
-are usually sufficient.
-
 Creating the dictionary:
-index.py creates an inverted index, a file of posting lists and a mapping length, from a collection of documents, the path to which is given by the user as input. To do so, the algorithm goes through 2 distinct steps:
-1) Create both the index and posting-list-file. Every document is read, and for every word, after it was tokenized, stemmed and case-folded, we update the index (and the corresponding posting list) accordingly.
+index.py creates an inverted index, a file of posting lists and a mapping length, from a collection of documents, the path to which is given by the user as input. To do so, the algorithm goes through 4 distinct steps:
+
+	1) Create both the index and posting-list blocks. Every document is read, and for every word, after it was tokenized, stemmed and case-folded, we update the index (and the corresponding posting list) accordingly.
+	For every 500 documents indexed (arbitrary number) we write the posting list into a block
 2) Once the index is complete, compute every documents length (using only the term frequency for terms in the document) and store it in the dictionary length. After that, serialize the index and the dictionary length, using the cPickle library
 
 Although left as a comment in the code, our search engine initially supported phrasal queries for boolean retrieval, that is queries that include phrases such as "A B" or "A B C", where A, B and C are words. In order to reduce overhead in the dictionary and the posting-list-file, phrases with more than 2 words are transformed as follows: "A B C ..." -> "A B" AND "B C" AND ... Moreover, phrases "A B" and "B A" are considered to be identical. For a word "A", the algorithm updates the entry dictionary["A"] by appending to the tuple a second offset, wich represents the offset in posting-list-file of the list of pairs (docID,hash32("Bi")), where "Bi" is a word such that "A" < "Bi" (string comparison), and "A Bi" appears in the document docID. We chose not to include this code because the corresponding "postings.txt" file, with its size of 1.3 Gb, was too big to be uploaded.
