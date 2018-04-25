@@ -232,7 +232,7 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 	
 	
 	for rep_nbr, report in enumerate(law_reports):
-
+		
 		docID = int(report[0]) # Extract docID
 		
 		#create an entry containing the informations of the document
@@ -324,11 +324,11 @@ with open(input_directory, 'rb') as csvfile: # Scan all the documents
 			print "\nINDEXING BLOCK TIME"
 			print time.time()-st
 			t = time.time()
-			print "WRITE BLOCK "+str(block_number)
 			
 			#update the block number and write the new block
 			block_size +=1
 			block_number = rep_nbr/ DOCS_PER_BLOCK
+			print "WRITE BLOCK "+str(block_number)
 			write_block(block_number)
 			
 			#free memory
